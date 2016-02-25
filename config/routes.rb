@@ -24,7 +24,7 @@ Rails.application.routes.draw do
       get 'stores/:id/edit_position' => 'stores#edit_position', :as => 'edit_position_store'
       patch 'stores/:id/update_position' => 'stores#update_position', :as => 'update_position_store'
 
-      get 'zonings/:zoning_id/zones' => 'zones#index', :as => 'zones'
+      match 'zonings/:zoning_id/zones' => 'zones#index', :as => 'zones', via: [:get, :post]
 
       get 'plannings/:planning_id/routes' => 'routes#index', :as => 'routes'
     end
@@ -113,6 +113,8 @@ Rails.application.routes.draw do
   get '/images/diamon-:color' => 'images#diamon'
   get '/images/star' => 'images#star'
   get '/images/star-:color' => 'images#star'
+  get '/images/user' => 'images#user'
+  get '/images/user-:color' => 'images#user'
   get '/images/point_large' => 'images#point_large'
   get '/images/point_large-:color' => 'images#point_large'
 

@@ -8,10 +8,6 @@ destination_unaffected_one:
   city: MyString
   lat: 1.5
   lng: 1.5
-  quantity: 1
-  take_over: 2000-01-01 00:01:00
-  open: 2000-01-01 10:00:00
-  close: 2000-01-01 11:00:00
   customer: customer_one
   detail: MyString
   comment: MyString
@@ -26,15 +22,10 @@ destination_one:
   city: Bordeau
   lat: 49.1857
   lng: -0.3735
-  quantity: 1
-  take_over: 2000-01-01 00:05:33
-  open: 2000-01-01 10:00:00
-  close: 2000-01-01 11:00:00
   customer: customer_one
   detail: MyString
   comment: MyString
   phone_number: MyString
-  tags: tag_one
 
 destination_two:
   ref: c
@@ -44,9 +35,6 @@ destination_two:
   city: MyString
   lat: 1.5
   lng: 1.5
-  quantity: 3
-  open: 2000-01-01 10:00:00
-  close: 2000-01-01 11:00:00
   customer: customer_one
   detail: MyString
   comment: MyString
@@ -61,9 +49,6 @@ destination_three:
   city: MyString
   lat: 1.5
   lng: 1.5
-  quantity: 3
-  open: 2000-01-01 10:00:00
-  close: 2000-01-01 11:00:00
   customer: customer_one
   detail: MyString
   comment: MyString

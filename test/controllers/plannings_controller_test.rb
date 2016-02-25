@@ -15,8 +15,8 @@ class PlanningsControllerTest < ActionController::TestCase
   end
 
   def around
-    Osrm.stub_any_instance(:compute, [1000, 60, 'trace']) do
-      Osrm.stub_any_instance(:matrix, lambda{ |url, vector| Array.new(vector.size, Array.new(vector.size, 0)) }) do
+    Routers::Osrm.stub_any_instance(:compute, [1000, 60, 'trace']) do
+      Routers::Osrm.stub_any_instance(:matrix, lambda{ |url, vector| Array.new(vector.size, Array.new(vector.size, 0)) }) do
         Ort.stub_any_instance(:optimize, lambda { |optimize_time, soft_upper_bound, capacity, matrix, time_window, time_window_rest, time_threshold| (0..(matrix.size-1)).to_a }) do
           yield
         end
@@ -96,8 +96,8 @@ class PlanningsControllerTest < ActionController::TestCase
 
     get :show, id: @planning, format: :csv
     assert_response :success
-    assert_equal ',route_zero,,,,,a,unaffected_one,MyString,MyString,MyString,MyString,,1.5,1.5,MyString,MyString,00:01:00,,,10:00,11:00,tag1,"","",""', response.body.split("\n")[1]
-    assert_equal 'vehicle_one,route_one,1,,00:00,1.5,b,destination_one,Rue des Lilas,MyString,33200,Bordeau,,49.1857,-0.3735,MyString,MyString,00:05:33,P1/P2,1,10:00,11:00,tag1,"","",""', response.body.split("\n").select{ |l| l.include?('vehicle_one') }[1]
+    assert_equal 'route_zero,,,visite,,,,,,"","","",a,unaffected_one,MyString,MyString,MyString,MyString,,1.5,1.5,MyString,MyString,tag1,a,00:01:00,,10:00,11:00,tag1', response.body.split("\n")[1]
+    assert_equal 'route_one,001,1,visite,1,,00:00,1.1,,"","","",b,destination_one,Rue des Lilas,MyString,33200,Bordeau,,49.1857,-0.3735,MyString,MyString,"",b,00:05:33,P1/P2,10:00,11:00,tag1', response.body.split("\n").select{ |l| l.include?('001') }[1]
   end
 
   test 'should get edit' do

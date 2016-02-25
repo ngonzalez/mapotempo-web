@@ -9,7 +9,7 @@ class V01::VehiclesTest < ActiveSupport::TestCase
   end
 
   def around
-    Osrm.stub_any_instance(:compute, [1, 1, 'trace']) do
+    Routers::Osrm.stub_any_instance(:compute, [1, 1, 'trace']) do
       yield
     end
   end
@@ -20,12 +20,12 @@ class V01::VehiclesTest < ActiveSupport::TestCase
 
   def api(part = nil, param = {})
     part = part ? '/' + part.to_s : ''
-    "/api/0.1/vehicles#{part}.json?api_key=testkey1&" + param.collect{ |k, v| "#{k}=#{v}" }.join('&')
+    "/api/0.1/vehicles#{part}.json?api_key=testkey1&" + param.collect{ |k, v| "#{k}=" + URI.escape(v.to_s) }.join('&')
   end
 
   def api_admin(part = nil, param = {})
     part = part ? '/' + part.to_s : ''
-    "/api/0.1/vehicles#{part}.json?api_key=adminkey&" + param.collect{ |k, v| "#{k}=#{v}" }.join('&')
+    "/api/0.1/vehicles#{part}.json?api_key=adminkey&" + param.collect{ |k, v| "#{k}=" + URI.escape(v.to_s) }.join('&')
   end
 
   test 'should return customer''s vehicles' do

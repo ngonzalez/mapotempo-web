@@ -14,7 +14,7 @@ class V01::CustomerTest < ActiveSupport::TestCase
 
   def api(part = nil, param = {})
     part = part ? '/' + part.to_s : ''
-    "/api/0.1/customers#{part}.json?api_key=testkey1&" + param.collect{ |k, v| "#{k}=#{v}" }.join('&')
+    "/api/0.1/customers#{part}.json?api_key=testkey1&" + param.collect{ |k, v| "#{k}=" + URI.escape(v.to_s) }.join('&')
   end
 
   def api_admin(part = nil)
@@ -114,16 +114,21 @@ class V01::CustomerTest < ActiveSupport::TestCase
   end
 
   test 'should get tomtom ids' do
-    uri_template = Addressable::Template.new('https://soap.business.tomtom.com/v1.25/objectsAndPeopleReportingService?wsdl')
-    stub_table = stub_request(:get, uri_template).to_return(File.new(File.expand_path('../../../lib/', __FILE__) + '/soap.business.tomtom.com/objectsAndPeopleReportingService.wsdl').read)
+    begin
+      uri_template = Addressable::Template.new('https://soap.business.tomtom.com/v1.25/objectsAndPeopleReportingService?wsdl')
+      stub_table = stub_request(:get, uri_template).to_return(File.new(File.expand_path('../../../web_mocks', __FILE__) + '/soap.business.tomtom.com/objectsAndPeopleReportingService.wsdl').read)
 
-    uri_template = Addressable::Template.new('https://soap.business.tomtom.com/v1.25/objectsAndPeopleReportingService')
-    stub_table = stub_request(:post, uri_template).with { |request|
-      request.body.include?("showObjectReport")
-    }.to_return(File.new(File.expand_path('../../../lib/', __FILE__) + '/soap.business.tomtom.com/showObjectReportResponse.xml').read)
+      uri_template = Addressable::Template.new('https://soap.business.tomtom.com/v1.25/objectsAndPeopleReportingService')
+      stub_table = stub_request(:post, uri_template).with { |request|
+        request.body.include?("showObjectReport")
+      }.to_return(File.new(File.expand_path('../../../web_mocks/', __FILE__) + '/soap.business.tomtom.com/showObjectReportResponse.xml').read)
 
-    get api("#{@customer.id}/tomtom_ids")
-    assert last_response.ok?, last_response.body
-    assert_equal '1-44063-666E054E7 - MAPO1', JSON.parse(last_response.body)['1-44063-666E054E7']
+      get api("#{@customer.id}/tomtom_ids")
+      assert last_response.ok?, last_response.body
+      assert_equal 'MAPO1', JSON.parse(last_response.body)['1-44063-666E054E7']
+    ensure
+      remove_request_stub(stub_table)
+    end
   end
+
 end

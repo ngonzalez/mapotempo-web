@@ -21,6 +21,14 @@ class Router < ActiveRecord::Base
   auto_strip_attributes :name, :url_time, :url_distance, :mode
   validates :name, presence: true
 
+  def time?
+    false
+  end
+
+  def distance?
+    false
+  end
+
   def isochrone?
     false
   end
@@ -60,5 +68,30 @@ class Router < ActiveRecord::Base
     }
 
     out
+  end
+
+  def rectangular2square_matrix(row, column, &block)
+    row, column = pack_vector(row, column)
+    vector = row != column ? row + column : row
+    matrix = yield(vector)
+    if row != column
+      matrix = matrix[0..row.size - 1].collect{ |l|
+        l[row.size..-1]
+      }
+    end
+    unpack_vector(row, column, matrix)
+  end
+
+  def matrix_iterate(row, column, speed_multiplicator, dimension = :time, &block)
+    total = row.size * column.size
+    row.collect{ |v1|
+      column.collect{ |v2|
+        distance, time, trace = trace(speed_multiplicator, v1[0], v1[1], v2[0], v2[1], dimension, false)
+        distance ||= 2147483647
+        time ||= 2147483647
+        block.call(1, total) if block
+        [distance, time]
+      }
+    }
   end
 end

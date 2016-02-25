@@ -7,33 +7,56 @@
   <%= f.text_field :end_subscription, {value: @customer.end_subscription ? l(@customer.end_subscription) : nil, disabled:!current_user.admin?, input_group: content_tag('i', '', {class: 'fa fa-calendar fa-fw'})} %>
   <%= f.number_field :max_vehicles, {min:1, disabled: (Mapotempo::Application.config.manage_vehicles_only_admin && !current_user.admin?) }  %>
   <% if current_user.admin? %>
-    <%= f.collection_select :profile_id, [], Profile.all, :id, :name, {}, {input_group: content_tag('i', '', class: 'fa fa-gear fa-fw')} %>
-  <% end %>
-  <%= f.collection_select :router_id, [], @customer.id ? @customer.profile.routers : Router.all, :id, :name, {}, {input_group: content_tag('i', '', class: 'fa fa-gear fa-fw')} do %>
-    <p class="help-block"><%= t '.router_help' %></p>
-  <% end %>
-  <%= f.number_field :speed_multiplicator, {min:50, max: 150, placeholder: t('.speed_multiplicator_default', n: 100), input_group: '%'} do %>
-    <p class="help-block"><%= t '.speed_multiplicator_help' %></p>
-  <% end %>
-  <%= f.text_field :take_over, {value: @customer.take_over ? @customer.take_over.strftime("%H:%M:%S") : nil, input_group: t('all.unit.hour_minute_second')} do %>
-    <p class="help-block"><%= t '.take_over_help' %></p>
-  <% end %>
-  <%= f.text_field :default_country %>
-  <% if current_user.admin? %>
-    <%= f.toggles t 'activerecord.attributes.customer.enable_orders' do %>
-      <%= f.check_box :enable_orders %>
-    <% end %>
-    <%= f.toggles t 'activerecord.attributes.customer.enable_multi_vehicle_usage_sets' do %>
-      <%= f.check_box :enable_multi_vehicle_usage_sets %>
-    <% end %>
     <%= f.toggles t 'activerecord.attributes.customer.test' do %>
       <%= f.check_box :test %>
     <% end %>
-    <%= f.number_field :optimization_cluster_size, { placeholder: t('.optimization_cluster_size_default', n: Mapotempo::Application.config.optimize_cluster_size), min: 0, input_group: t('all.unit.second')} %>
-    <%= f.number_field :optimization_time, { placeholder: t('.optimization_time_default', n: Mapotempo::Application.config.optimize_time), min: 0, input_group: t('all.unit.second')} %>
-    <%= f.number_field :optimization_soft_upper_bound, { placeholder: t('.optimization_soft_upper_bound_default', n: Mapotempo::Application.config.optimize_soft_upper_bound), min: 0, input_group: '×'} do %>
-      <p class="help-block"><%= t '.optimization_soft_upper_bound_help' %></p>
+  <% end %>
+  <fieldset>
+    <legend class="scheduler-border">
+      <%= t '.default_value' %>
+    </legend>
+    <% if current_user.admin? %>
+      <%= f.collection_select :profile_id, [], Profile.all, :id, :name, {}, {input_group: content_tag('i', '', class: 'fa fa-gear fa-fw')} %>
     <% end %>
+    <%= f.collection_select :router_id, [], @customer.id ? @customer.profile.routers : Router.all, :id, :name, {}, {input_group: content_tag('i', '', class: 'fa fa-gear fa-fw')} do %>
+      <p class="help-block"><%= t '.router_help' %></p>
+    <% end %>
+    <%= f.number_field :speed_multiplicator, {min:50, max: 150, placeholder: t('.speed_multiplicator_default', n: 100), input_group: '%'} do %>
+      <p class="help-block"><%= t '.speed_multiplicator_help' %></p>
+    <% end %>
+    <%= f.text_field :take_over, {value: @customer.take_over && l(@customer.take_over, format: :hour_minute_second), input_group: t('all.unit.hour_minute_second')} do %>
+      <p class="help-block"><%= t '.take_over_help' %></p>
+    <% end %>
+    <%= f.text_field :default_country %>
+  </fieldset>
+  <% if current_user.admin? %>
+    <fieldset>
+      <legend class="scheduler-border">
+        <%= t '.options' %>
+      </legend>
+      <%= f.toggles t 'activerecord.attributes.customer.enable_orders' do %>
+        <%= f.check_box :enable_orders %>
+      <% end %>
+      <%= f.toggles t 'activerecord.attributes.customer.enable_multi_vehicle_usage_sets' do %>
+        <%= f.check_box :enable_multi_vehicle_usage_sets %>
+      <% end %>
+      <%= f.toggles t 'activerecord.attributes.customer.enable_multi_visits' do %>
+        <%= f.check_box :enable_multi_visits %>
+      <% end %>
+      <%= f.toggles t 'activerecord.attributes.customer.enable_references' do %>
+        <%= f.check_box :enable_references %>
+      <% end %>
+    </fieldset>
+    <fieldset>
+      <legend class="scheduler-border">
+        <%= t '.optimization_parameters' %>
+      </legend>
+      <%= f.number_field :optimization_cluster_size, { placeholder: t('.optimization_cluster_size_default', n: Mapotempo::Application.config.optimize_cluster_size), min: 0, input_group: t('all.unit.second')} %>
+      <%= f.number_field :optimization_time, { placeholder: t('.optimization_time_default', n: Mapotempo::Application.config.optimize_time), min: 0, input_group: t('all.unit.second')} %>
+      <%= f.number_field :optimization_soft_upper_bound, { placeholder: t('.optimization_soft_upper_bound_default', n: Mapotempo::Application.config.optimize_soft_upper_bound), min: 0, input_group: '×'} do %>
+        <p class="help-block"><%= t '.optimization_soft_upper_bound_help' %></p>
+      <% end %>
+    </fieldset>
   <% end %>
   <div id="accordion" class="panel panel-default">
     <div class="panel-heading">
@@ -62,8 +85,8 @@
       <%= f.check_box :enable_tomtom %>
     <% end %>
   <% end %>
-  <% if @customer.enable_tomtom? %>
-    <div class="panel panel-default">
+  <% if current_user.admin? || @customer.enable_tomtom? %>
+    <div id="tomtom_container" class="panel panel-default">
       <div class="panel-heading">
         <h2 class="panel-title">
           <a class="accordion-toggle collapsed" data-toggle="collapse" data-parent="#accordion" href="#collapseTomtom">
@@ -74,9 +97,21 @@
       <div id="collapseTomtom" class="panel-collapse collapse">
         <div class="panel-body">
           <p class="help-block"><%= t '.tomtom_help' %></p>
-          <%= f.text_field :tomtom_account %>
-          <%= f.text_field :tomtom_user %>
-          <%= f.text_field :tomtom_password %>
+          <div class="pull-left col-md-10">
+
+            <!-- http://stackoverflow.com/questions/15738259/disabling-chrome-autofill -->
+            <input style="display:none" type="text" name="customer[tomtom_account]" />
+            <input style="display:none" type="text" name="customer[tomtom_user]" />
+            <input style="display:none" type="password" name="customer[tomtom_password]" />
+
+            <%= f.text_field :tomtom_account, autocomplete: "off" %>
+            <%= f.text_field :tomtom_user, autocomplete: "off" %>
+            <%= f.password_field :tomtom_password, value: f.object.new_record? ? nil : tomtom_default_password, autocomplete: "off" %>
+          </div>
+          <div class="pull-right col-md-2">
+            <%= fa_icon "check 4x", style: "color:green;", class: "hidden", id: "tomtom_success" %>
+            <%= fa_icon "close 4x", style: "color:red;", class: "hidden", id: "tomtom_not_found" %>
+          </div>
         </div>
       </div>
     </div>
@@ -127,6 +162,6 @@
     </div>
   <% end %>
   <%= f.actions do %>
-    <%= f.submit %>
+    <%= f.submit t('.submit') %>
   <% end %>
 <% end %>

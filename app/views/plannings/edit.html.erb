@@ -1,4 +1,5 @@
 <% content_for :title, t('.title') %>
+
 <div id="edit-planning" class="sidebar">
   <div class="sidebar-tabs">
     <ul role="tablist">
@@ -25,11 +26,12 @@
           <li><%= link_to planning_path(@planning, format: :excel) do %><i class="fa fa-table fa-fw"></i> <%= t '.export.spreadsheet_excel' %><% end %></li>
           <li><%= link_to planning_path(@planning, format: :gpx) do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.gpx_route' %><% end %></li>
           <li><%= link_to planning_path(@planning, format: :gpx, track: true) do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.gpx_trace' %><% end %></li>
-          <li><%= link_to planning_path(@planning, format: :kmz) do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.kml_track' %><% end %></li>
+          <li><%= link_to planning_path(@planning, format: :kmz) do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.kmz_track' %><% end %></li>
+          <li class="kmz_email"><%= link_to planning_path(@planning, format: :kmz, email: 1) do %><i class="fa fa-envelope fa-fw"></i> <%= t '.export.kmz_email.action' %><% end %></li>
           <% if @planning.customer.tomtom? %>
-            <li class="export_tomtom"><%= link_to planning_path(@planning, format: :tomtom, type: 'orders') do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.tomtom_orders' %><% end %></li>
-            <li class="export_tomtom"><%= link_to planning_path(@planning, format: :tomtom, type: 'waypoints') do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.tomtom_waypoints' %><% end %></li>
-            <li class="export_tomtom"><%= link_to planning_path(@planning, format: :tomtom, type: 'empty') do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.tomtom_empty' %><% end %></li>
+            <li class="tomtom_send"><%= link_to planning_path(@planning, format: :tomtom, type: 'orders') do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.tomtom_send.action' %><% end %></li>
+            <li class="tomtom_send"><%= link_to planning_path(@planning, format: :tomtom, type: 'waypoints') do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.tomtom_waypoints' %><% end %></li>
+            <li class="tomtom_clear"><%= link_to planning_path(@planning, format: :tomtom, type: 'empty') do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.tomtom_clear.action' %><% end %></li>
           <% end %>
           <% if @planning.customer.enable_masternaut && !@planning.customer.masternaut_user.blank? && !@planning.customer.masternaut_password.blank? %>
             <li class="export_masternaut"><%= link_to planning_path(@planning, format: :masternaut) do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.masternaut' %><% end %></li>
@@ -108,23 +110,35 @@
   </div>
 </div>
 <%
+layers = (current_user.customer.profile.layers + [current_user.layer]).sort_by(&:id).uniq.collect{ |layer|
+  {
+    name: layer.name,
+    url: request.ssl? ? layer.urlssl : layer.url,
+    attribution: layer.map_attribution,
+    default: layer == current_user.layer,
+    overlay: layer.overlay
+  }
+}
 controller.js(
   planning_id: @planning.id,
-  route_ids: @planning.routes.collect(&:id),
+  routes_array: @planning.routes.collect{ |r| {route_id: r.id, color: r.color, vehicle_usage_id: r.vehicle_usage_id, ref: r.ref} },
   zoning_id: @planning.zoning ? @planning.zoning.id : nil,
-  map_layers: (current_user.customer.profile.layers + [current_user.layer]).sort_by(&:id).uniq.collect{ |layer| {
-      name: layer.name,
-      url: request.ssl? ? layer.urlssl : layer.url,
-      attribution: layer.map_attribution,
-      default: layer == current_user.layer
-  }},
+  map_layers: Hash[layers.map{ |l| l[:name] }.zip(layers)],
   map_lat: @planning.vehicle_usage_set.vehicle_usages.collect(&:default_store_start).find{ |s| s.lat }.lat || @planning.customer.default_position[:lat],
   map_lng: @planning.vehicle_usage_set.vehicle_usages.collect(&:default_store_start).find{ |s| s.lng }.lng || @planning.customer.default_position[:lng],
   vehicles_array: @planning.customer.vehicles.collect{ |vehicle|
-    {id: vehicle.id, text: vehicle.name, color: vehicle.color}
+    {id: vehicle.id, text: vehicle.name, color: vehicle.color, available_position: vehicle.available_position?}
   },
   vehicles_usages_map: Hash[@planning.vehicle_usage_set.vehicle_usages.collect{ |vehicle_usage|
-    [vehicle_usage.vehicle.id, {vehicle_usage_id: vehicle_usage.id, name: vehicle_usage.vehicle.name, color: vehicle_usage.vehicle.color, capacity: vehicle_usage.vehicle.capacity, vehicle_id: vehicle_usage.vehicle_id}]
+    [
+      vehicle_usage.vehicle.id, {
+        vehicle_usage_id: vehicle_usage.id,
+        name: vehicle_usage.vehicle.name,
+        color: vehicle_usage.vehicle.color,
+        capacity: vehicle_usage.vehicle.capacity,
+        vehicle_id: vehicle_usage.vehicle_id
+      }
+    ]
   }],
   colors: Vehicle.colors_table,
   url_click2call: current_user.link_phone_number

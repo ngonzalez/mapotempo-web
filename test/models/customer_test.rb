@@ -4,7 +4,7 @@ class CustomerTest < ActiveSupport::TestCase
   set_fixture_class delayed_jobs: Delayed::Backend::ActiveRecord::Job
 
   def around
-    Osrm.stub_any_instance(:compute, [1, 1, 'trace']) do
+    Routers::Osrm.stub_any_instance(:compute, [1, 1, 'trace']) do
       yield
     end
   end
@@ -32,10 +32,11 @@ class CustomerTest < ActiveSupport::TestCase
   end
 
   test 'should destination add' do
-    o = customers(:customer_one)
+    c = customers(:customer_one)
     assert_difference('Destination.count') do
-      o.destinations.build(name: 'new', city: 'Parlà', tags: [tags(:tag_one)]).save!
-      o.save!
+      d = c.destinations.build(name: 'new', city: 'Parlà')
+      d.visits.build(tags: [tags(:tag_one)])
+      c.save!
     end
   end
 

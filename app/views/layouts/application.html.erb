@@ -37,7 +37,7 @@
     <%= javascript_include_tag 'application', 'data-turbolinks-track' => true %>
   </head>
 
-  <body>
+  <body data-controller="<%= controller.controller_path.gsub('/', '_') %>" data-action="<%= controller.action_name %>">
     <div id="wrapper">
       <div class="navbar navbar-default navbar-static-top">
         <div class="navbar-header">
@@ -47,7 +47,7 @@
           </button>
 
           <!-- Be sure to leave the brand out there if you want it shown -->
-          <a class="navbar-brand mapotempo-logo" href="/"><%= image_tag request.env['reseller'].logo_small.url || "logo_mapotempo.svg", width: 150, height: 40, alt: request.env['reseller'].name %></a>
+          <a class="navbar-brand" href="/"><%= image_tag request.env['reseller'].logo_small.url || "logo_mapotempo.svg", width: 150, height: 40, alt: request.env['reseller'].name %></a>
         </div>
 
         <!-- Place everything within .navbar-collapse to hide it until above 768px -->
@@ -139,7 +139,6 @@
                   <% if current_user.customer %>
                     <li><%= link_to edit_customer_path(current_user.customer) do %><i class="fa fa-building-o fa-fw"></i> <%= t 'customers.menu.customer' %><% end %></li>
                   <% end %>
-                  <li><%= link_to edit_user_registration_path do %><i class="fa fa-key fa-fw"></i> <%= t 'customers.menu.user' %><% end %></li>
                   <li><%= link_to edit_user_settings_path(current_user) do %><i class="fa fa-user fa-fw"></i> <%= t 'customers.menu.user_settings' %><% end %></li>
                 </ul>
               </li>
@@ -155,15 +154,14 @@
 
       </div>
 
-      <div class="main container" data-controller="<%= controller.controller_path.gsub('/', '_') %>" data-action="<%= controller.action_name %>">
-        <div class="flash">
-          <%= bootstrap_flash.gsub('alert-dismissable', '').html_safe %>
-        </div>
+      <div class="main container">
         <div>
           <iframe name="click2call_iframe" style="display: none"></iframe>
         </div>
         <%= yield %>
       </div>
+
+      <%= render partial: "shared/flash_messages" %>
 
       <footer class="hidden-print">
         <div class="col-md-12">

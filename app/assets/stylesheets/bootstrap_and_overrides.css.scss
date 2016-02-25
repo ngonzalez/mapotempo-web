@@ -47,6 +47,11 @@
     padding: 3px 5px;
 }
 
+input[type="radio"], input[type="checkbox"] {
+  vertical-align: sub;
+  margin-right: 3px;
+}
+
 .input-group-addon.input-sm {
     height: 25px;
     padding: 0 5px;
@@ -90,6 +95,10 @@ hr {
 
 .select2-container--bootstrap .select2-selection--multiple .select2-search--inline .select2-search__field  {
   min-width: 0em;
+}
+
+.select2 img {
+  vertical-align: baseline; /* better for tags */
 }
 
 /* Add Open and Close cheron to accordion */
@@ -190,17 +199,36 @@ html.turbolinks-progress-bar::before {
   background-color: #13B0CA !important;
 }
 
-/* leaflet-marker-icon number */
+/* leaflet-marker-icon */
+.leaflet-marker-icon {
+  font-size: 16px;
+}
+
 .leaflet-marker-icon.small .number {
   background: none;
   color: #fff;
   right: -1px;
-  top: 3px;
+  top: 7px;
 }
 
 .leaflet-marker-icon.large .number {
   background: none;
   color: #fff;
   right: 8px;
-  top: 5px;
+  top: 9px;
 }
+
+.store-icon {
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+}
+
+/*
+  PNotify
+*/
+.ui-pnotify {
+  margin: 30px;
+  top: 30px;
+  right: 30px;
+  z-index: 10 !important;
+}
+

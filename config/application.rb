@@ -2,9 +2,10 @@ require File.expand_path('../boot', __FILE__)
 
 require 'rails/all'
 require_relative '../app/middleware/reseller_by_host'
-require_relative '../lib/osrm'
-require_relative '../lib/otp'
-require_relative '../lib/here'
+require_relative '../lib/routers/osrm'
+require_relative '../lib/routers/otp'
+require_relative '../lib/routers/here'
+require_relative '../lib/routers/router_wrapper'
 require_relative '../lib/ort'
 require_relative '../lib/tomtom_webfleet'
 
@@ -12,6 +13,8 @@ require_relative '../lib/tomtom_webfleet'
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
+
+require 'devise'
 
 module Mapotempo
   class Application < Rails::Application
@@ -64,6 +67,8 @@ module Mapotempo
 
     config.action_mailer.default_url_options = {host: 'localhost'}
 
+    config.default_from_mail = 'root@localhost'
+
     config.swagger_docs_base_path = 'http://localhost:3000/'
 
     config.optimize = Ort.new(
@@ -71,7 +76,7 @@ module Mapotempo
       'http://localhost:4567/0.1/optimize_tsptw'
     )
     config.optimize_time = 30
-    config.optimize_cluster_size = 5
+    config.optimize_cluster_size = 0
     config.optimize_soft_upper_bound = 3
 
     config.geocode_code_cache = ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'geocode'), namespace: 'geocode', expires_in: 60*60*24*10)
@@ -83,23 +88,33 @@ module Mapotempo
     require 'geocode_addok_wrapper'
     Mapotempo::Application.config.geocode_geocoder = GeocodeAddokWrapper.new('https://geocode.mapotempo.com/0.1', 'secret_api_key')
 
-    config.osrm = Osrm.new(
+    config.router_osrm = Routers::Osrm.new(
       ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'osrm_request'), namespace: 'osrm_request', expires_in: 60*60*24*1),
       ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'osrm_result'), namespace: 'osrm_result', expires_in: 60*60*24*1)
     )
 
-    config.otp = Otp.new(
+    config.router_otp = Routers::Otp.new(
       ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'otp_request'), namespace: 'otp_request', expires_in: 60*60*24*1),
       ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'otp_result'), namespace: 'otp_result', expires_in: 60*60*24*1)
     )
 
-    config.here = Here.new(
+    config.router_here = Routers::Here.new(
       ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'here_request'), namespace: 'here_request', expires_in: 60*60*24*1),
       ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'here_result'), namespace: 'here_result', expires_in: 60*60*24*1),
       'https://route.nlp.nokia.com/routing', nil, nil
     )
 
-    config.tomtom = TomtomWebfleet.new('https://soap.business.tomtom.com/v1.25', nil)
+    config.router_wrapper = Routers::RouterWrapper.new(
+      ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'router_wrapper_request'), namespace: 'router_wrapper_request', expires_in: 60*60*24*1),
+      ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'router_wrapper_result'), namespace: 'router_wrapper_result', expires_in: 60*60*24*1),
+      nil
+    )
+
+    config.tomtom = TomtomWebfleet.new(
+      'https://soap.business.tomtom.com/v1.25',
+      nil,
+      ActiveSupport::Cache::FileStore.new(File.join(Dir.tmpdir, 'tomtom'), namespace: 'tomtom', expires_in: 30)
+    )
 
     config.masternaut_api_url = 'http://ws.webservices.masternaut.fr/MasterWS/services'
 
@@ -112,6 +127,9 @@ module Mapotempo
 
     config.max_destinations = 3000
     config.manage_vehicles_only_admin = false
+
+    config.enable_references = true
+    config.enable_multi_visits = false
   end
 end
 

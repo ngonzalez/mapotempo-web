@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2015
+# Copyright © Mapotempo, 2016
 #
 # This file is part of Mapotempo.
 #
@@ -29,27 +29,26 @@ class ImportJson
   end
 
   def import(synchronous = false)
-    if json
+    data = @importer.json_to_rows json
+    if data
       begin
         Customer.transaction do
-          key = %w(ref route name street detail postalcode city lat lng open close comment tags take_over quantity active)
+          keys = @importer.columns.keys
 
-          @importer.import(json, replace, nil, synchronous, false) { |row|
+          rows = @importer.import(data, nil, synchronous, ignore_errors: false, replace: replace) { |row|
             r, row = row, {}
             r.each{ |k, v|
-              if key.include?(k)
-                row[k.to_sym] = v
+              ks = k.to_sym
+              if keys.include?(ks)
+                row[ks] = v
               end
             }
 
-            if !row[:tags].nil?
-              row[:tags] = row[:tags].join(',')
-            end
-
             row
           }
+          @importer.rows_to_json rows
         end
-      rescue => e
+      rescue ImportBaseError => e
         errors[:base] << e.message
         return false
       end

@@ -1,11 +1,11 @@
 require 'test_helper'
-require 'osrm'
+require 'routers/osrm'
 
 class PlanningTest < ActiveSupport::TestCase
   set_fixture_class delayed_jobs: Delayed::Backend::ActiveRecord::Job
 
   def around
-    Osrm.stub_any_instance(:compute, [1, 1, 'trace']) do
+    Routers::Osrm.stub_any_instance(:compute, [1, 1, 'trace']) do
       yield
     end
   end
@@ -29,28 +29,36 @@ class PlanningTest < ActiveSupport::TestCase
     oo.save!
   end
 
-  test 'should set_destinations' do
+  test 'should set_routes' do
     o = plannings(:planning_one)
 
-    o.set_destinations({'route_one_one' => [[destinations(:destination_one)]]})
-    assert o.routes[1].stops.select{ |stop| stop.is_a?(StopDestination) }.collect(&:destination).include?(destinations(:destination_one))
+    o.set_routes({'route_one_one' => {visits: [[visits(:visit_one)]]}})
+    assert o.routes[1].stops.select{ |stop| stop.is_a?(StopVisit) }.collect(&:visit).include?(visits(:visit_one))
     o.save!
   end
 
-  test 'should not set_destinations for tags' do
+  test 'should not set_routes for tags' do
     o = plannings(:planning_one)
     o.tags << tags(:tag_two)
 
-    o.set_destinations({'route_one_one' => [[destinations(:destination_one)]]})
-    assert_not o.routes[1].stops.select{ |stop| stop.is_a?(StopDestination) }.collect(&:destination).include?(destinations(:destination_one))
+    o.set_routes({'route_one_one' => {visits: [[visits(:visit_one)]]}})
+    assert_not o.routes[1].stops.select{ |stop| stop.is_a?(StopVisit) }.collect(&:visit).include?(visits(:visit_one))
     o.save!
   end
 
-  test 'should not set_destinations for size' do
+  test 'should set_routes with ref_vehicle' do
+    o = plannings(:planning_one)
+
+    o.set_routes({'route_one_one' => {visits: [[visits(:visit_one)]], ref_vehicle: vehicles(:vehicle_one).ref}})
+    assert o.routes[2].stops.select{ |stop| stop.is_a?(StopVisit) }.collect(&:visit).include?(visits(:visit_one))
+    o.save!
+  end
+
+  test 'should not set_routes for size' do
     o = plannings(:planning_one)
 
     assert_raises(RuntimeError) {
-      o.set_destinations(Hash[0.upto(o.routes.size).collect{ |i| ["route#{i}", [destinations(:destination_one)]] }])
+      o.set_routes(Hash[0.upto(o.routes.size).collect{ |i| ["route#{i}", {visits: [visits(:visit_one)]}] }])
     }
     o.save!
   end
@@ -75,18 +83,18 @@ class PlanningTest < ActiveSupport::TestCase
     end
   end
 
-  test 'should destination_add' do
+  test 'should visit_add' do
     o = plannings(:planning_one)
     assert_difference('Stop.count') do
-      o.destination_add(destinations(:destination_two))
+      o.visit_add(visits(:visit_two))
       o.save!
     end
   end
 
-  test 'should destination_remove' do
+  test 'should visit_remove' do
     o = plannings(:planning_one)
     assert_difference('Stop.count', -2) do
-      o.destination_remove(destinations(:destination_one))
+      o.visit_remove(visits(:visit_one))
       o.save!
     end
   end
@@ -105,7 +113,7 @@ class PlanningTest < ActiveSupport::TestCase
   test 'should compute with non geocoded' do
     o = plannings(:planning_one)
     o.zoning_out_of_date = true
-    d0 = o.routes[0].stops[0].destination
+    d0 = o.routes[0].stops[0].visit.destination
     d0.lat = d0.lng = nil
     o.compute
     o.routes.select{ |r| r.vehicle_usage }.each{ |r|
@@ -170,5 +178,75 @@ class PlanningTest < ActiveSupport::TestCase
     o.save!
     oa.destroy
     o.save!
+  end
+
+  test 'plan with service time' do
+    # A valid Route and Vehicle Usage
+    v = vehicle_usages(:vehicle_usage_one_one)
+    r = v.routes.take
+
+    # 1st computation, set Stop times
+    r.compute
+    stop_times = r.stops.map &:time
+    route_end = r.end
+
+    # Add Service Time
+    v.vehicle_usage_set.update!(
+      service_time_start: Time.utc(2000, 1, 1, 0, 0) + 10.minutes,
+      service_time_end: Time.utc(2000, 1, 1, 0, 0) + 25.minutes
+    )
+
+    # 2nd computation
+    r.compute
+    stop_times2 = r.stops.map &:time
+    route_end2 = r.end
+
+    # Make sure time has been added to first stop and route end
+    assert_equal stop_times[0] + 10.minutes, stop_times2[0]
+    assert_equal route_end + 25.minutes, route_end2
+
+    # Vehicle Usage overrides Service Time values
+    v.update!(
+      service_time_start: Time.utc(2000, 1, 1, 0, 0) + 30.minutes,
+      service_time_end: Time.utc(2000, 1, 1, 0, 0) + 20.minutes
+    )
+
+    # 3rd computation
+    r.compute
+    stop_times3 = r.stops.map &:time
+    route_end3 = r.end
+
+    # Let's verify values for first stop and route end
+    assert_equal stop_times[0] + 30.minutes, stop_times3[0]
+    assert_equal route_end + 20.minutes, route_end3
+
+    # Add Time Window to 1st Destination should set out of window flag
+    assert !r.stops[0].out_of_window
+
+    # Add a time window in service time start time (less than 30 minutes)
+    r.stops[0].visit.update!(
+      open: v.service_time_start + 5.minutes,
+      close: v.service_time_start + 10.minutes
+    )
+
+    # Compute a last time, this stop should be out of time window
+    r.compute
+    assert r.stops[0].out_of_window
+  end
+
+  test 'plan using stores without lat or lng' do
+    v = vehicle_usages(:vehicle_usage_one_one)
+    r = v.routes.take
+    r.planning.customer.stores.update_all lat: nil, lng: nil
+    r.compute
+    r.stops.sort_by(&:index).each_with_index do |stop, index|
+      if index.zero? || index == r.stops.length - 1
+        # Can't trace path, store has no lat / lng to start with
+        assert stop.distance.nil? && stop.trace.nil?
+      else
+        assert_equal 1.0, stop.distance
+        assert_equal 'trace', stop.trace
+      end
+    end
   end
 end

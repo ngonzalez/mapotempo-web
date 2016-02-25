@@ -23,10 +23,11 @@ en:
     unit: "m"
     thousand: "km"
   time:
+    hour: "Hour"
+    minute: "Minute"
     formats:
-      default: "%d-%m-%Y"
-      short: "%b %d"
-      long: "%B %d, %Y"
+      hour_minute: "%H:%M"
+      hour_minute_second: "%H:%M:%S"
 
   activemodel:
     models:
@@ -42,6 +43,7 @@ en:
       import_csv:
         file: "File"
         replace: "Replace"
+        delete_plannings: "Delete previous plannings"
       import_tomtom:
         replace: "Replace"
 
@@ -113,6 +115,10 @@ en:
       vehicle_usage_sets:
         one: "vehicles configuration"
         other: "vehicle configurations"
+      visit: "Visit"
+      visits:
+        one: "visit"
+        other: "visits"
       zoning: "Zoning"
       zonings:
         one: "zoning"
@@ -142,6 +148,8 @@ en:
         stores: "Stores"
         enable_orders: "Enable orders"
         enable_multi_vehicle_usage_sets: "Enable more than one vehicles configurations"
+        enable_references: "View references"
+        enable_multi_visits: "Enable more than one visit per destination"
         test: "Test"
         jobs: "Jobs"
         optimization_cluster_size: "Optimization cluster size"
@@ -153,6 +161,8 @@ en:
         default_country: "Default country"
         ref: "Reference"
       destination:
+        ref: "Reference"
+        ref_small: "Ref."
         name: "Name"
         address: "Address"
         street: "Street"
@@ -162,23 +172,15 @@ en:
         country: "Country"
         lat: "Latitude"
         lng: "Longitude"
-        quantity: "Quantity"
-        quantity_small: "Qty."
-        take_over: "Take over"
-        take_over_small: "Take over"
-        open: "Time window open"
-        close: "Time window close"
-        open_close_small: "Open/Close"
         comment: "Comment"
+        comment_small: "Comment"
         phone_number: "Phone number"
         phone_number_small: "Phone number"
-        tags: "Tags"
-        tag_ids: "Tags"
-        ref: "Reference"
-        ref_small: "Ref."
         geocoding_accuracy: "Geocoding accuracy"
         geocoding_accuracy_small: "Geoc."
         geocoding_level: "Geocoding level"
+        tags: "Tags"
+        tag_ids: "Tags"
       # Duplicate for nested errors with autosave
       destinations:
         name: "Name"
@@ -188,18 +190,10 @@ en:
         postalcode: "Postalcode"
         city: "City"
         country: "Country"
-        quantity: "Quantity"
-        quantity_small: "Qty."
-        open: "Time window open"
-        close: "Time window close"
-        open_close_small: "Open/Close"
         comment: "Comment"
         phone_number: "Phone number"
-        phone_number_small: "Phone number"
-        tags: "Tags"
-        tag_ids: "Tags"
-        ref: "Reference"
         geocoding_accuracy: "Geocoding accuracy"
+        geocoding_level: "Geocoding level"
       layer:
         name: "Name"
         url: "URL"
@@ -273,6 +267,18 @@ en:
         store_start: "Start store"
         store_end: "End store"
         color: "Color"
+        icon: "Icon"
+        icon_size: "Icon size"
+      # Duplicate for nested errors with autosave
+      stores:
+        name: "Name"
+        address: "Address"
+        street: "Street"
+        postalcode: "Postalcode"
+        city: "City"
+        country: "Country"
+        geocoding_accuracy: "Geocoding accuracy"
+        geocoding_level: "Geocoding level"
       tag:
         label: "Label"
         color: "Color"
@@ -297,12 +303,14 @@ en:
         emission: "Emission"
         consumption: "Consumption"
         capacity: "Capacity"
+        capacity_unit: "Capacity unit"
         color: "Color"
         tomtom_id: "TomTom ID"
         masternaut_ref: "Masternaut vehicle ref."
         router_id: "Route planner"
         speed_multiplicator: "Speed tuning"
         ref: "Reference"
+        contact_email: "E-Mail"
       vehicle_usage:
         vehicle_id: "Vehicle"
         open: "Open"
@@ -315,6 +323,8 @@ en:
         rest_stop: "Rest window stop"
         rest_duration: "Rest duration"
         store_rest_id: "Rest place"
+        service_time_start: "Service Time Before"
+        service_time_end: "Service Time After"
       vehicle_usage_set:
         name: "Name"
         open: "Open"
@@ -327,6 +337,22 @@ en:
         rest_stop: "Rest window stop"
         rest_duration: "Rest duration"
         store_rest_id: "Rest place"
+        service_time_start: "Service Time Before"
+        service_time_end: "Service Time After"
+      visit:
+        ref: "Reference"
+        ref_small: "Ref."
+        quantity: "Quantity"
+        quantity_small: "Qty."
+        take_over: "Take over"
+        take_over_small: "Take over"
+        open: "Time window open"
+        open_small: "Open"
+        close: "Time window close"
+        close_small: "Close"
+        open_close_small: "Open/Close"
+        tags: "Tags"
+        tag_ids: "Tags"
       zoning:
         name: "Name"
       zone:
@@ -349,12 +375,13 @@ en:
           geocoding_accuracy_outside_range: "must be inside range 0..1"
         vehicles:
           at_least_one: "At least one vehicle needed"
-        vehicle_usages:
+        vehicle_usage:
           attributes:
             close:
               after: "Must be after the open time"
             rest_stop:
               after: "Must be after the open time"
+          missing_rest_window: "can't be blanked if rest duration is filled"
         vehicle_usage_set:
           attributes:
             close:
@@ -362,6 +389,7 @@ en:
             rest_stop:
               after: "Must be after the open time"
           at_least_one: "At least one vehicles configuration needed"
+          missing_rest_window: "can't be blanked if rest duration is filled"
         zone:
           attributes:
             vehicle:
@@ -379,6 +407,8 @@ en:
           missing_address_or_latlng: "Postalcode and city cannot be empty if lat/lng are empty"
           lat_outside_range: "must be inside range -90..90"
           lng_outside_range: "must be inside range -180..180"
+          icon_unknown: "is not in font-awesome icon list"
+          icon_size_invalid: "is not a valid size"
         route:
           attributes:
             stops:
@@ -388,6 +418,11 @@ en:
     planning:
       import_too_routes: "Try to import more routes than available vehicles."
       already_optimizing: "A planning optimization is already in progress"
+    tomtom:
+      access_denied: "Access denied. 'Full Access Orders' is not enabled in WEBFLEET user interface. You have insufficient permissions to perform this function."
+      invalid_account: "User invalid (does not exist)."
+      external_requests_not_allowed: "Access denied. 'Access to interface WEBFLEET.connect' is not enabled in WEBFLEET user interface. External requests are not allowed for that account/user."
+      hostname_not_allowed: "Hostname not allowed."
 
   import:
     template_csv: "Import Template Spreadsheet Standard"
@@ -433,12 +468,11 @@ en:
       country: "England"
     menu:
       parameters: "Parameters"
-      customer: "Customer"
-      user: "User"
+      customer: "Global settings"
       user_settings: "User's Settings"
       customers: "Customers"
     edit:
-      title: "Editing customer"
+      title: "Editing global settings"
       user:
         connect_as: "Connect as…"
         list: "Users list"
@@ -453,6 +487,9 @@ en:
     new:
       title: "New customer"
     form:
+      default_value: "Default values"
+      options: "Options"
+      optimization_parameters: "Optimization's parameters"
       router_help: "Profile used for route planning by default"
       take_over_help: "Average time per customer"
       tomtom: "TomTom WEBFLEET"
@@ -470,6 +507,7 @@ en:
         title: "Printing"
       speed_multiplicator_default: "%{n} (default value)"
       speed_multiplicator_help: "A value higher than 100% mean higher speed."
+      submit: "Update Global settings"
 
   destinations:
     menu:
@@ -485,17 +523,11 @@ en:
     form:
       ref_help: "A free reference"
       detail_help: "Non geocoded addresse complement; like flat number"
-      quantity_help: "Quantity to be delivered"
-      take_over_help: "If empty uses the default value"
-      close_help: "Without taking into account take over duration"
-      tags_help: "Customer's categories"
       comment_help: "Delivery required information"
       locate_manually: "Locate manually on the map"
       geocoding_accuracy_none: "Not applicable"
       geocoding_fail: "Geocoding has failed"
       geocoding_accuracy_help: "Conversion quality of the address to the geographical position"
-      quantity_default: "default"
-      take_over_default: "default"
       country_default: "%{n} (default value)"
       geocoding_level:
         point: "Point"
@@ -503,14 +535,27 @@ en:
         street: "Street"
         intersection: "Intersection"
         city: "City"
+      tags_help: "Destination's categories"
       dialog:
         confirm_overwrite_point: "It seems you have previously set position manually on map. Do you want to replace previous position with the result of geocoding?"
+      visit:
+        enable_multi_visits: "Need more than one visit for this destination? Please contact support."
+        new: "New visit"
+        new_help: "New visit if you go to this destination several times."
     edit:
       title: "Editing destination"
     import:
       title: "Import destinations"
-      replace_help: "Replace customers with import ones. Overwrite all customers. Plannings will also be lost. In the opposite case an update of existing customers is made and the new ones are added."
+      destinations: "Destinations"
+      replace_no: "Update / in addition"
+      replace_no_help: "An update of existing destinations (unchanged customer references) is made and the new ones are added in application."
+      replace_yes: "Delete previous destinations"
+      replace_yes_help: "Delete and replace destinations with import ones. Overwrite all destinations. Plannings will also be lost."
       replace_confirm: "Delete all clients and their amendments to replace them with imported ones?"
+      plannings: "Plannings"
+      delete_plannings: "Delete previous plannings"
+      delete_plannings_help: "Delete previously created plannings (allow better performances). If routes are present in your new import file, a planning will be created anyway after import."
+      delete_plannings_confirm: "Delete all previously created plannings ?"
       csv:
         title: "CSV File"
         help: "Imports destinations from CSV file. CSV files can be exported from spreadsheet or other softwares."
@@ -538,6 +583,9 @@ en:
     import_file:
       ref: "reference"
       route: "route"
+      ref_vehicle: "vehicle"
+      stop_type: "stop type"
+      stop_type_visit: "visit"
       name: "name"
       street: "street"
       detail: "detail"
@@ -556,6 +604,9 @@ en:
       comment: "comment"
       phone_number: "phone"
       tags: "tags"
+      without_visit: "without visit"
+      ref_visit: "reference visit"
+      tags_visit: "tags visit"
       not_csv: "Imported file is not a CSV"
       too_many_lines: "Stop import, too many lines (max: %{n})."
       missing_data: "\"name\" missing or \"city\" or \"postalcode\" or \"lat\" and \"lng\" missing at record %{line}."
@@ -606,6 +657,15 @@ en:
       comment: "comment"
       total: "total"
 
+  route_mailer:
+    send_kmz_route:
+      content: "Route informations have been exported using KML format in a file attached to this E-Mail."
+      vehicle: "Vehicle"
+      planning: "Planning"
+      planning_ref: "Planning Ref."
+      route_ref: "Route Ref."
+      order_array: "Orders"
+
   plannings:
     menu:
       plannings: "Plannings"
@@ -619,21 +679,33 @@ en:
       optimize_each: "Optimize all routes"
       optimize_each_confirm: "Run an optimization calculation on each road?"
       optimize_confirm: "Run an optimization calculation?"
+      optimize_complete: "Optimization Complete"
+      optimize_failed: "Optimization Failed"
       zoning_confirm: "Save and apply the new zoning?"
       route_placeholder: "Route ref."
+      service_time: "Service Time"
       exports: "Export"
       export:
+        tomtom_clear:
+          action: "Clear TomTom"
+          success: "TomTom commands have been cleared successfully"
+          fail: "Failed to clear TomTom commands"
+        tomtom_send:
+          action: "Send to TomTom as Orders"
+          success: "Sent to TomTom successfully"
+          fail: "Failed to send to TomTom"
+        kmz_email:
+          action: "KML Send by E-Mail"
+          success: "E-Mail sent successfully"
+          fail: "Failed to send E-Mail"
         print: "Print"
         spreadsheet_standard: "Spreadsheet Standard"
         spreadsheet_standard_without_stores: "Spreadsheet Standard without stores"
         spreadsheet_excel: "Spreadsheet Excel"
         gpx_route: "GPX Route"
         gpx_trace: "GPX Track"
-        kml_track: "KML Track"
-        tomtom_orders: "Send to TomTom as Orders"
+        kmz_track: "KML Track"
         tomtom_waypoints: "Send to TomTom as Waypoints"
-        tomtom_empty: "Clear TomTom"
-        tomtom_success: "Sent to TomTom with success"
         masternaut: "Send to Masternaut"
         masternaut_success: "Sent to Masternaut with success"
         alyacom: "Send to AlyaCom"
@@ -671,14 +743,20 @@ en:
       active_none: "None"
       send_to_route_help: "Move this stop at the end of a route"
       wait: "Waiting time:"
+      vehicle_speed: "Speed:"
+      vehicle_last_position_time: "Last position:"
       popup:
-        open: "Time window open:"
-        close: "Time window close:"
+        open_close: "Time window:"
+        open: "open"
+        close: "close"
         time: "Arrival:"
         quantity: "Quantity:"
         orders: "Orders:"
         duration: "Take over:"
         tags: "Tags:"
+        stop_drive_time: "Duration:"
+        stop_distance: "Distance:"
+        visit: "Visit"
       error:
         no_geolocalization: "No geolocalization"
         no_geolocalization_help: "No geographical coordinates or address could not be located"
@@ -688,8 +766,8 @@ en:
         out_of_capacity_help: "Vehicle capacity exceeded"
         out_of_drive_time: "Out of vehicle's time window"
         out_of_drive_time_help: "Vehicle time window activity exceeded"
-        no_path: "No path"
-        no_path_help: "No path to or from the destination"
+        no_path: "Unreachable destination"
+        no_path_help: "Unreachable destination: missing or no path to or from the destination to find a route"
       dialog:
         optimizer:
           title: "Optimization"
@@ -718,9 +796,14 @@ en:
       vehicle: "vehicle"
       route: "route"
       order: "order"
+      stop_type: "stop type"
+      stop_type_store: "store"
+      stop_type_visit: "visit"
+      stop_type_rest: "rest"
       wait_time: "wait"
       time: "time"
       distance: "distance"
+      drive_time: "drive time"
       name: "name"
       street: "street"
       detail: "detail"
@@ -730,20 +813,22 @@ en:
       lat: "lat"
       lng: "lng"
       comment: "comment"
+      tags: "tags"
       phone_number: "phone"
+      ref_visit: "reference visit"
       duration: "duration"
       quantity: "quantity"
       orders: "orders"
       active: "active"
       open: "open"
       close: "close"
-      tags: "tags"
+      tags_visit: "tags visit"
       out_of_window: "out of customer's time window"
       out_of_capacity: "out of capacity"
       out_of_drive_time: "out of vehicle's time window"
     form:
       ref_help: "A free reference"
-      tags_help: "Restrict customer to this categories"
+      tags_help: "Restrict visits/customers to these categories"
       order_array: "Orders"
 
   routes:
@@ -776,11 +861,19 @@ en:
       ref_help: "A free reference"
       locate_manually: "Locate manually on the map"
       country_default: "%{n} (default value)"
+      icon_size:
+        small: "small"
+        medium: "medium"
+        large: "large"
     edit:
       title: "Editing store"
     import:
       title: "Import stores"
-      replace_help: "Replace stores with import ones. Overwrite all stores. In the opposite case an update of existing stores is made and the new ones are added."
+      stores: "Stores"
+      replace_no: "Update / in addition"
+      replace_no_help: "An update of existing stores (unchanged store references) is made and the new ones are added in application."
+      replace_yes: "Delete previous stores"
+      replace_yes_help: "Delete and replace stores with import ones. Overwrite all stores."
       replace_confirm: "Delete all stores and their amendments to replace them with imported ones?"
       csv:
         title: "CSV File"
@@ -807,6 +900,8 @@ en:
       open: "open"
       close: "close"
       color: "color"
+      icon: "icon"
+      icon_size: "icon size"
       missing_data: "\"name\" missing or \"city\" or \"postalcode\" or \"lat\" and \"lng\" missing at record %{line}."
 
   products:
@@ -842,6 +937,7 @@ en:
       sign_out: "Sign out"
     edit_settings:
       title: "User's Settings"
+      edit_user_registration: "Change your login credentials and password"
     form_settings:
       url_click2call_help: "URL of VOIP communications solution. In URL set '{TEL}' in place of the phone number"
 
@@ -860,12 +956,16 @@ en:
         help: "Average fuel consumption in liters per 100 km"
       capacity:
         help: "Maximun vehicle's capacity"
+      capacity_unit:
+        help: "Unit of the capacity"
       router:
         default: "Default"
         help: "Force usage of this router"
       speed_multiplicator:
         default: "%{n} (default value)"
-        help: "A value higher than 100% mean higher speed. The global tune up set on customer is also used on computation."
+        help: "A value higher than 100% mean higher speed. The global tune up set on settings is also used on computation."
+      contact_email:
+        help: "Driver's Device E-Mail"
 
   vehicle_usages:
     menu:
@@ -902,11 +1002,17 @@ en:
         default: "%{n} (default value)"
       rest_stop:
         default: "%{n} (default value)"
+        help: "Without taking into account rest duration"
       rest_duration:
         default: "%{n} (default value)"
+        help: "Requires rest start and stop times if filled"
       store_rest:
         default: "Default"
         none: "None"
+      service_time:
+        default: "%{n} (default value)"
+        help_start: "Duration added before the first stop."
+        help_end: "Duration added after the last stop."
 
   vehicle_usage_sets:
     default:
@@ -920,6 +1026,7 @@ en:
       new: "New vehicles configuration"
       stores: "Stores"
       time: "Open - Close"
+      service_time: "Service Time"
     new:
       title: "New vehicles configuration"
     form:
@@ -929,6 +1036,27 @@ en:
         none: "None"
       store_rest:
         none: "None"
+      service_time:
+        help_start: "Duration added before the first stop."
+        help_end: "Duration added after the last stop."
+      rest_duration:
+        help: "Requires rest start and stop times if filled"
+      rest_stop:
+        help: "Without taking into account rest duration"
+
+  visits:
+    form:
+      legend: "Visit #%{n}"
+      destroy: "If checked, visit will be destroyed by submiting this page. Click here to cancel."
+      ref_help: "A free reference. IMPORTANT if you want not to overwrite visits during import/export especially."
+      quantity_help: "Quantity to be delivered"
+      take_over_help: "If empty uses the default value"
+      close_help: "Without taking into account take over duration"
+      tags_help: "Visit's categories"
+      quantity_default: "default"
+      take_over_default: "default"
+      delete: "Flag for delation"
+      delete_help: "Delete this visit (destination will be kept)"
 
   zonings:
     menu:
@@ -976,6 +1104,7 @@ en:
 
   web:
     form:
+      default: "%{n} (default value)"
       empty_entry: "- N/A -"
     select2:
       empty_result: "No results matched"
@@ -995,7 +1124,7 @@ en:
           none_destinations: 'None destination has been loaded'
       routes:
         index:
-          none_zones: 'None route has been loaded'
+          none_routes: 'None route has been loaded'
       stores:
         index:
           none_stores: 'None store has been loaded'

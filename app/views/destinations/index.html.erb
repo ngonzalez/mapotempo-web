@@ -8,6 +8,7 @@
   </div>
   <div class="col-md-4">
     <span id="count"></span> <%= t 'activerecord.models.destinations', count: 10 %>
+    - <span id="count-visits"></span> <%= t 'activerecord.models.visits', count: 10 %>
   </div>
   <div class="col-md-2">
     <div class="pull-right">
@@ -22,29 +23,63 @@
   <div class="col-md-12">
     <table class="tablesorter">
       <thead><tr>
-        <th><input type="checkbox" title="<%= t 'all.verb.toggle_selection' %>"></th>
-        <th><%= t 'activerecord.attributes.destination.ref_small' %></th>
-        <th><%= t 'activerecord.attributes.destination.name' %></th>
-        <th>
-          <span><%= t 'activerecord.attributes.destination.street' %></span>,
-          <span><%= t 'activerecord.attributes.destination.detail' %></span>,
-          <span><%= t 'activerecord.attributes.destination.postalcode' %></span>,
-          <span><%= t 'activerecord.attributes.destination.city' %></span>
+        <th data-sorter="false" class="filter-false columnSelector-disable">
+          <button type="button" class="btn btn-default btn-xs index_toggle_selection" title="<%= t 'all.verb.toggle_selection' %>"><i class="fa fa-check fa-fw"></i></button>
+        </th>
+        <% if @customer.enable_references && !@customer.enable_multi_visits %>
+          <th class="ref columnSelector-disable">
+            <div class="col-title"><%= t 'activerecord.attributes.destination.ref_small' %></div>
+          </th>
+        <% end %>
+        <th class="name columnSelector-disable">
+          <div class="col-title"><%= t 'activerecord.attributes.destination.name' %></div>
+        </th>
+        <th class="address columnSelector-disable">
+          <div class="col-title">
+            <span><%= t 'activerecord.attributes.destination.street' %></span>,
+            <span><%= t 'activerecord.attributes.destination.detail' %></span>,
+            <span><%= t 'activerecord.attributes.destination.postalcode' %></span>,
+            <span><%= t 'activerecord.attributes.destination.city' %></span>
+          </div>
         </th>
         <% 
         # class="columnSelector-false" allows to uncheck columns in columnSelector
         # data-priority is used to hide columns depending the width of table
         # http://view.jquerymobile.com/1.3.2/dist/demos/widgets/table-column-toggle/ 
         %>
-        <th><%= t 'activerecord.attributes.destination.country' %></th>
-        <th><%= t 'activerecord.attributes.destination.quantity_small' %></th>
-        <th><%= t 'activerecord.attributes.destination.take_over_small' %></th>
-        <th><%= t 'activerecord.attributes.destination.open_close_small' %></th>
-        <th><%= t 'activerecord.attributes.destination.comment' %></th>
-        <th><%= t 'activerecord.attributes.destination.phone_number_small' %></th>
-        <th><%= t 'activerecord.attributes.destination.tags' %></th>
-        <th title="<%= t '.geocoding_column_help' %>"><%= t 'activerecord.attributes.destination.geocoding_accuracy_small' %></th>
-        <th></th>
+        <th class="country">
+          <div class="col-title"><%= t 'activerecord.attributes.destination.country' %></div>
+        </th>
+        <th class="comment">
+          <div class="col-title"><%= t 'activerecord.attributes.destination.comment_small' %></div>
+        </th>
+        <th data-sorter="digit" class="phone">
+          <div class="col-title"><%= t 'activerecord.attributes.destination.phone_number_small' %></div>
+        </th>
+        <% if !@customer.enable_multi_visits %>
+          <th class="tags">
+            <div class="col-title"><%= t 'activerecord.attributes.destination.tags' %></div>
+          </th>
+        <% end %>
+        <th title="<%= t '.geocoding_column_help' %>" class="geocoding filter-false">
+          <div class="col-title"><%= t 'activerecord.attributes.destination.geocoding_accuracy_small' %></div>
+        </th>
+        <th data-sorter="false" class="visit columnSelector-disable" style="min-width:<% if !@customer.enable_multi_visits %>14<% elsif !@customer.enable_references %>23<% else %>26<% end %>em;">
+          <div class="col-title"><%= t 'activerecord.models.visit' %></div>
+          <div id="visit-subtitles" style="width: 100%;">
+            <% if @customer.enable_references && @customer.enable_multi_visits %>
+              <div class="visit-subtitle" style="min-width: 3em;"><%= t 'activerecord.attributes.visit.ref_small' %></div>
+            <% end %>
+            <div class="visit-subtitle" style="width: 4em;"><%= t 'activerecord.attributes.visit.quantity_small' %></div>
+            <% if @customer.enable_multi_visits %>
+              <div class="visit-subtitle" style="width: 10em;"><%= t 'activerecord.attributes.visit.tags' %></div>
+            <% end %>
+            <div class="visit-subtitle" style="width: 5em;"><%= t 'activerecord.attributes.visit.take_over_small' %></div>
+            <div class="visit-subtitle" style="width: 3.5em;"><%= t 'activerecord.attributes.visit.open_small' %></div>
+            <div class="visit-subtitle" style="width: 3.5em;"><%= t 'activerecord.attributes.visit.close_small' %></div>
+          </div>
+        </th>
+        <th data-sorter="false" class="filter-false columnSelector-disable"></th>
       </tr></thead>
       <tbody class="destinations"></tbody>
     </table>
@@ -68,14 +103,24 @@
   <p class="dialog-attempts" style="display: none"><%= t '.dialog.geocoding.attempts' %> <span class="dialog-attempts-number"></span></p>
 </div>
 <%
+layers = (@customer.profile.layers + [current_user.layer]).sort_by(&:id).uniq.collect{ |layer|
+  {
+    name: layer.name,
+    url: request.ssl? ? layer.urlssl : layer.url,
+    attribution: layer.map_attribution,
+    default: layer == current_user.layer,
+    overlay: layer.overlay
+  }
+}
 controller.js(
-  map_layer_url: request.ssl? ? current_user.layer.urlssl : current_user.layer.url,
+  map_layers: Hash[layers.map{ |l| l[:name] }.zip(layers)],
   map_lat: @customer.default_position[:lat],
   map_lng: @customer.default_position[:lng],
-  map_attribution: current_user.layer.map_attribution,
   default_city: @customer.stores[0].city,
   default_country: @customer.default_country,
-  take_over_default: (@customer.take_over && @customer.take_over.strftime('%H:%M:%S')),
-  url_click2call: current_user.link_phone_number
+  take_over_default: @customer.take_over && l(@customer.take_over, format: :hour_minute_second),
+  url_click2call: current_user.link_phone_number,
+  enable_references: @customer.enable_references,
+  enable_multi_visits: @customer.enable_multi_visits
 )
 %>

@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2013-2015
+# Copyright © Mapotempo, 2013-2016
 #
 # This file is part of Mapotempo.
 #
@@ -41,23 +41,32 @@ class Route < ActiveRecord::Base
     })
   end
 
-  def init_stops
+  def init_stops(ignore_errors = false)
     stops.clear
     if vehicle_usage && vehicle_usage.default_rest_duration
       stops.build(type: StopRest.name, active: true, index: 1)
     end
 
-    compute
+    compute(ignore_errors)
   end
 
   def default_stops
     i = stops.size
-    planning.destinations_compatibles.each { |c|
-      stops.build(type: StopDestination.name, destination: c, active: true, index: i += 1)
+    planning.visits_compatibles.each { |visit|
+      stops.build(type: StopVisit.name, visit: visit, active: true, index: i += 1)
     }
   end
 
-  def plan(departure = nil)
+  def service_time_start_value
+    vehicle_usage.default_service_time_start - Time.utc(2000, 1, 1, 0, 0) if vehicle_usage && vehicle_usage.default_service_time_start
+  end
+
+  def service_time_end_value
+    vehicle_usage.default_service_time_end - Time.utc(2000, 1, 1, 0, 0) if vehicle_usage && vehicle_usage.default_service_time_end
+  end
+
+  def plan(departure = nil, ignore_errors = false)
+    self.touch if self.id # To force route save in case none attribute has changed below
     self.out_of_date = false
     self.distance = 0
     self.stop_distance = 0
@@ -67,25 +76,44 @@ class Route < ActiveRecord::Base
     self.start = self.end = nil
     last_lat, last_lng = nil, nil
     if vehicle_usage && stops.size > 0
+      service_time_start = service_time_start_value
+      service_time_end = service_time_end_value
       self.end = self.start = departure || vehicle_usage.default_open
-      speed_multiplicator = (planning.customer.speed_multiplicator || 1) * (vehicle_usage.vehicle.speed_multiplicator || 1)
+      speed_multiplicator = vehicle_usage.vehicle.default_speed_multiplicator
       if !vehicle_usage.default_store_start.nil? && !vehicle_usage.default_store_start.lat.nil? && !vehicle_usage.default_store_start.lng.nil?
         last_lat, last_lng = vehicle_usage.default_store_start.lat, vehicle_usage.default_store_start.lng
       end
       quantity = 0
-      router = vehicle_usage.vehicle.router || planning.customer.router
+      router = vehicle_usage.vehicle.default_router
       stops_time = {}
+
+      # Add service time
+      if !service_time_start.nil?
+        self.end += service_time_start
+      end
+
       stops_sort = stops.sort_by(&:index)
-      stops_sort.each{ |stop|
-        if stop.active && (stop.position? || stop.is_a?(StopRest))
+      stops_sort.each_with_index{ |stop, index|
+        if stop.active && (stop.position? || (stop.is_a?(StopRest) && stop.open && stop.close && stop.duration))
           if stop.position? && !last_lat.nil? && !last_lng.nil?
-            stop.distance, time, stop.trace = router.trace(speed_multiplicator, last_lat, last_lng, stop.lat, stop.lng)
+            begin
+              stop.distance, stop.drive_time, stop.trace = router.trace(speed_multiplicator, last_lat, last_lng, stop.lat, stop.lng)
+            rescue RouterError => e
+              raise if !ignore_errors
+            end
           else
-            stop.distance, time, stop.trace = nil, nil, nil
+            stop.distance, stop.drive_time, stop.trace = nil, nil, nil
           end
-          if time
-            stops_time[stop] = time
-            stop.time = self.end + time
+          if stop.drive_time
+            stops_time[stop] = stop.drive_time
+            stop.time = self.end + stop.drive_time
+          elsif stop.is_a?(StopRest)
+            stop.time = self.end
+          else
+            stop.time = nil
+          end
+
+          if stop.time
             if stop.open && stop.time < stop.open
               stop.wait_time = stop.open - stop.time
               stop.time = stop.open
@@ -94,37 +122,50 @@ class Route < ActiveRecord::Base
             end
             stop.out_of_window = (stop.open && stop.time < stop.open) || (stop.close && stop.time > stop.close)
 
-            self.distance += stop.distance
+            if stop.distance
+              self.distance += stop.distance
+            end
             self.end = stop.time + stop.duration
 
-            if stop.is_a?(StopDestination)
-              quantity += (stop.destination.quantity || 1)
+            if stop.is_a?(StopVisit)
+              quantity += (stop.visit.quantity || 1)
               stop.out_of_capacity = vehicle_usage.vehicle.capacity && quantity > vehicle_usage.vehicle.capacity
             end
 
             stop.out_of_drive_time = stop.time > vehicle_usage.default_close
-
-            if stop.position?
-              last_lat, last_lng = stop.lat, stop.lng
-            end
           end
+
+          if stop.position?
+            last_lat, last_lng = stop.lat, stop.lng
+          end
+
         else
-          stop.active = stop.out_of_capacity = stop.out_of_drive_time = false
+          stop.active = stop.out_of_capacity = stop.out_of_drive_time = stop.out_of_window = false
           stop.distance = stop.trace = stop.time = stop.wait_time = nil
         end
       }
 
       if !last_lat.nil? && !last_lng.nil? && vehicle_usage.default_store_stop && !vehicle_usage.default_store_stop.lat.nil? && !vehicle_usage.default_store_stop.lng.nil?
-        distance, time, trace = router.trace(speed_multiplicator, last_lat, last_lng, vehicle_usage.default_store_stop.lat, vehicle_usage.default_store_stop.lng)
+        begin
+          distance, drive_time, trace = router.trace(speed_multiplicator, last_lat, last_lng, vehicle_usage.default_store_stop.lat, vehicle_usage.default_store_stop.lng)
+        rescue RouterError => e
+          raise if !ignore_errors
+        end
       else
-        distance, time, trace = nil, nil, nil
+        distance, drive_time, trace = nil, nil, nil
       end
-      if time
+      if drive_time
         self.distance += distance
-        stops_time[:stop] = time
-        self.end += time
-        self.stop_distance = distance
+        stops_time[:stop] = drive_time
+        self.end += drive_time
+        self.stop_distance, self.stop_drive_time = distance, drive_time
       end
+
+      # Add service time to end point
+      if !service_time_end.nil?
+        self.end += service_time_end
+      end
+
       self.stop_trace = trace
       self.stop_out_of_drive_time = self.end > vehicle_usage.default_close
 
@@ -134,16 +175,17 @@ class Route < ActiveRecord::Base
     end
   end
 
-  def compute
-    stops_sort, stops_time = plan
+  def compute(ignore_errors = false)
+    stops_sort, stops_time = plan(nil, ignore_errors)
 
     if stops_sort
       # Try to minimize waiting time by a later begin
       time = self.end
       time -= stops_time[:stop] if stops_time[:stop]
+      (time -= vehicle_usage.default_service_time_end - Time.utc(2000, 1, 1, 0, 0)) if vehicle_usage.default_service_time_end
       stops_sort.reverse_each{ |stop|
         if stop.active && (stop.position? || stop.is_a?(StopRest))
-          if stop.out_of_window || (stop.close && time > stop.close)
+          if stop.time && (stop.out_of_window || (stop.close && time > stop.close))
             time = stop.time
           else
             # Latest departure time
@@ -158,43 +200,44 @@ class Route < ActiveRecord::Base
         end
       }
 
+      (time -= vehicle_usage.default_service_time_start - Time.utc(2000, 1, 1, 0, 0)) if vehicle_usage.default_service_time_start
       if time > start
         # We can sleep a bit more on morning, shift departure
-        plan(time)
+        plan(time, ignore_errors)
       end
     end
 
     true
   end
 
-  def set_destinations(dests, recompute = true)
+  def set_visits(visits, recompute = true, ignore_errors = false)
     Stop.transaction do
-      stops.select{ |stop| stop.is_a?(StopDestination) }.each{ |stop|
+      stops.select{ |stop| stop.is_a?(StopVisit) }.each{ |stop|
         remove_stop(stop)
       }
-      add_destinations(dests, recompute)
+      add_visits(visits, recompute, ignore_errors)
     end
   end
 
-  def add_destinations(dests, recompute = true)
+  def add_visits(visits, recompute = true, ignore_errors = false)
     Stop.transaction do
       i = stops.size
-      dests.each{ |stop|
-        destination, active = stop
-        stops.build(type: StopDestination.name, destination: destination, active: active, index: i += 1)
+      visits.each{ |stop|
+        visit, active = stop
+        stops.build(type: StopVisit.name, visit: visit, active: active, index: i += 1)
       }
-      compute if recompute
+      compute(ignore_errors) if recompute
     end
   end
 
-  def add(destination, index = nil, active = false, stop_id = nil)
+  def add(visit, index = nil, active = false, stop_id = nil)
     index = stops.size + 1 if index && index < 0
     if index
       shift_index(index)
     elsif vehicle_usage
       raise
     end
-    stops.build(type: StopDestination.name, destination: destination, index: index, active: active, id: stop_id)
+    stops.build(type: StopVisit.name, visit: visit, index: index, active: active, id: stop_id)
 
     if vehicle_usage
       self.out_of_date = true
@@ -207,9 +250,16 @@ class Route < ActiveRecord::Base
     self.out_of_date = true
   end
 
-  def remove_destination(destination)
+  def add_or_update_rest(active = true, stop_id = nil)
+    if !stops.find{ |stop| stop.is_a?(StopRest) }
+      add_rest(active, stop_id)
+    end
+    self.out_of_date = true
+  end
+
+  def remove_visit(visit)
     stops.each{ |stop|
-      if(stop.is_a?(StopDestination) && stop.destination == destination)
+      if(stop.is_a?(StopVisit) && stop.visit == visit)
         remove_stop(stop)
       end
     }
@@ -223,11 +273,11 @@ class Route < ActiveRecord::Base
     stops.destroy(stop)
   end
 
-  def move_destination(destination, index)
+  def move_visit(visit, index)
     stop = nil
     planning.routes.find{ |route|
       (route != self ? route : self).stops.find{ |s|
-        if s.is_a?(StopDestination) && s.destination == destination
+        if s.is_a?(StopVisit) && s.visit == visit
           stop = s
         end
       }
@@ -239,11 +289,11 @@ class Route < ActiveRecord::Base
 
   def move_stop(stop, index, force = false)
     if stop.route != self
-      if stop.is_a?(StopDestination)
-        destination, active = stop.destination, stop.active
+      if stop.is_a?(StopVisit)
+        visit, active = stop.visit, stop.active
         stop_id = stop.id
         stop.route.move_stop_out(stop)
-        add(destination, index, active || stop.route.vehicle_usage.nil?, stop_id)
+        add(visit, index, active || stop.route.vehicle_usage.nil?, stop_id)
       elsif force && stop.is_a?(StopRest)
         active = stop.active
         stop_id = stop.id
@@ -265,7 +315,7 @@ class Route < ActiveRecord::Base
   end
 
   def move_stop_out(stop, force = false)
-    if force || stop.is_a?(StopDestination)
+    if force || stop.is_a?(StopVisit)
       if vehicle_usage
         shift_index(stop.index + 1, -1)
       end
@@ -291,7 +341,7 @@ class Route < ActiveRecord::Base
 
   def optimize(matrix_progress, &optimizer)
     stops_on = stops_segregate[true]
-    router = vehicle_usage.vehicle.router || planning.customer.router
+    router = vehicle_usage.vehicle.default_router
     position_start = (vehicle_usage.default_store_start && !vehicle_usage.default_store_start.lat.nil? && !vehicle_usage.default_store_start.lng.nil?) ? [vehicle_usage.default_store_start.lat, vehicle_usage.default_store_start.lng] : [nil, nil]
     position_stop = (vehicle_usage.default_store_stop && !vehicle_usage.default_store_stop.lat.nil? && !vehicle_usage.default_store_stop.lng.nil?) ? [vehicle_usage.default_store_stop.lat, vehicle_usage.default_store_stop.lng] : [nil, nil]
     amalgamate_stops_same_position(stops_on) { |positions|
@@ -306,9 +356,9 @@ class Route < ActiveRecord::Base
       }
 
       positions = [position_start] + positions + [position_stop]
-      speed_multiplicator = (planning.customer.speed_multiplicator || 1) * (vehicle_usage.vehicle.speed_multiplicator || 1)
+      speed_multiplicator = vehicle_usage.vehicle.default_speed_multiplicator
       order = unnil_positions(positions, tws){ |positions, tws, rest_tws|
-        positions = positions[(position_start == [nil, nil] ? 1 : 0)..(position_stop == [nil, nil] ? -2 : -1)]
+        positions = positions[(position_start == [nil, nil] ? 1 : 0)..(position_stop == [nil, nil] ? -2 : -1)].collect{ |position| position[0..1] }
         matrix = router.matrix(positions, positions, speed_multiplicator, 'time', &matrix_progress)
         if position_start == [nil, nil]
           matrix = [[[0, 0]] * matrix.length] + matrix
@@ -366,7 +416,7 @@ class Route < ActiveRecord::Base
 
   def quantity
     stops.to_a.sum(0) { |stop|
-      stop.is_a?(StopDestination) && (stop.active || !vehicle_usage) ? (stop.destination.quantity || 1) : 0
+      stop.is_a?(StopVisit) && (stop.active || !vehicle_usage) ? (stop.visit.quantity || 1) : 0
     }
   end
 
@@ -481,7 +531,7 @@ class Route < ActiveRecord::Base
 
   def update_vehicle_usage
     if vehicle_usage_id_changed?
-      out_of_date = true
+      self.out_of_date = true
     end
   end
 end

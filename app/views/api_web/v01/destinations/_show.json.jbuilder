@@ -1,26 +1,42 @@
-json.extract! destination, :ref, :id, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :quantity, :comment, :phone_number, :geocoding_accuracy, :geocoding_level, :tag_ids
-json.take_over destination.take_over && destination.take_over.strftime('%H:%M:%S')
-json.open destination.open && destination.open.strftime('%H:%M')
-json.close destination.close && destination.close.strftime('%H:%M')
-json.destination do
-  json.id destination.id
-  if !destination.tags.empty?
+json.extract! destination, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :comment, :phone_number, :geocoding_accuracy, :geocoding_level
+json.destination_id destination.id
+json.error destination.lat.nil? || destination.lng.nil?
+
+color = nil
+icon = nil
+tags = destination.tags
+json.visits destination.visits do |visit|
+  json.extract! visit, :id, :quantity, :tag_ids
+  json.index_visit (destination.visits.index(visit) + 1) if destination.visits.size > 1
+  json.ref visit.ref if @customer.enable_references
+  take_over = visit.take_over && l(visit.take_over, format: :hour_minute_second)
+  json.take_over take_over
+  json.duration take_over
+  json.open_close visit.open || visit.close
+  json.open visit.open && l(visit.open, format: :hour_minute)
+  json.close visit.close && l(visit.close, format: :hour_minute)
+  tags = visit.tags | destination.tags
+  if !tags.empty?
     json.tags_present do
       json.tags do
-        json.array! destination.tags do |tag|
-          json.extract! tag, :label
-        end
+        json.array! tags, :label
       end
     end
+    color ||= tags.find(&:color)
+    icon ||= tags.find(&:icon)
   end
-  (json.duration destination.take_over.strftime('%H:%M:%S')) if destination.take_over
-  color = destination.tags.find(&:color)
-  (json.color color.color) if color
-  icon = destination.tags.find(&:icon)
-  (json.icon icon.icon) if icon
 end
-json.error destination.lat.nil? || destination.lng.nil?
-color = destination.tags.find(&:color)
+if destination.visits.size == 0
+  if !tags.empty?
+    json.tags_present do
+      json.tags do
+        json.array! tags, :label
+      end
+    end
+    color ||= tags.find(&:color)
+    icon ||= tags.find(&:icon)
+  end
+end
+# TODO: display several icons
 (json.color color.color) if color
-icon = destination.tags.find(&:icon)
 (json.icon icon.icon) if icon

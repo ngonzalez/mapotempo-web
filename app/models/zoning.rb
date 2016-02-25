@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2013-2015
+# Copyright © Mapotempo, 2013-2016
 #
 # This file is part of Mapotempo.
 #
@@ -40,12 +40,12 @@ class Zoning < ActiveRecord::Base
       }
     })
 
-    append name: Time.now.strftime(' %Y-%m-%d %H:%M')
+    append name: ' ' + I18n.l(Time.now, format: :long)
   end
 
-  def apply(destinations)
-    destinations.group_by{ |destination|
-      inside(destination)
+  def apply(visits)
+    visits.group_by{ |visit|
+      inside(visit.destination)
     }
   end
 
@@ -85,7 +85,7 @@ class Zoning < ActiveRecord::Base
   def from_planning(planning)
     zones.clear
     clusters = planning.routes.select(&:vehicle_usage).collect{ |route|
-      route.stops.select{ |stop| stop.is_a?(StopDestination) }.collect{ |stop|
+      route.stops.select{ |stop| stop.is_a?(StopVisit) }.collect{ |stop|
         if stop.position?
           [stop.lat, stop.lng]
         end
@@ -138,7 +138,7 @@ class Zoning < ActiveRecord::Base
 
   def isowhat?(what, vehicle_usage_set)
     vehicle_usage_set.vehicle_usages.find{ |vehicle_usage|
-      router = (vehicle_usage.vehicle.router || customer.router)
+      router = vehicle_usage.vehicle.default_router
       router.method(what).call && !vehicle_usage.default_store_start.nil? && !vehicle_usage.default_store_start.lat.nil? && !vehicle_usage.default_store_start.lng.nil?
     }
   end
@@ -152,9 +152,9 @@ class Zoning < ActiveRecord::Base
 
   def isowhat_vehicle_usage(what_qm, what, size, vehicle_usage)
     if vehicle_usage
-      router = (vehicle_usage.vehicle.router || customer.router)
+      router = vehicle_usage.vehicle.default_router
       if router.method(what_qm).call && !vehicle_usage.default_store_start.nil? && !vehicle_usage.default_store_start.lat.nil? && !vehicle_usage.default_store_start.lng.nil?
-        geom = router.method(what).call(vehicle_usage.default_store_start.lat, vehicle_usage.default_store_start.lng, size, (customer.speed_multiplicator || 1) * (vehicle_usage.vehicle.speed_multiplicator || 1))
+        geom = router.method(what).call(vehicle_usage.default_store_start.lat, vehicle_usage.default_store_start.lng, size, vehicle_usage.vehicle.default_speed_multiplicator)
       end
       if geom
         zone = zones.to_a.find{ |zone| zone.vehicle_id == vehicle_usage.vehicle.id }

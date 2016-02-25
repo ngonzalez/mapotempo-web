@@ -19,7 +19,7 @@ class User < ActiveRecord::Base
   # Include default devise modules. Others available are:
   # :token_authenticatable, :confirmable,
   # :lockable, :timeoutable and :omniauthable
-  devise :database_authenticatable, :token_authenticatable, :registerable,
+  devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :validatable
 
   nilify_blanks
@@ -54,9 +54,9 @@ class User < ActiveRecord::Base
 
   def assign_defaults_layer
     if admin?
-      self.layer ||= Layer.first
+      self.layer ||= Layer.order(:id).find_by!(overlay: false)
     else
-      self.layer ||= customer && customer.profile.layers.first
+      self.layer ||= customer && customer.profile.layers.order(:id).find_by!(overlay: false)
     end
   end
 end

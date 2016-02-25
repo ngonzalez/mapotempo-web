@@ -1,8 +1,8 @@
 <p class="global_info">
-  <i class="fa fa-check-square fa-fw"></i>{{size_active}}/{{size}}&nbsp;{{#i18n}}plannings.edit.stops{{/i18n}}
-  <i class="fa fa-clock-o fa-fw"></i>{{duration}}
-  <i class="fa fa-road fa-fw"></i>{{distance}}
-  <i class="fa fa-flask fa-fw"></i>{{emission}}&nbsp;{{#i18n}}all.unit.kgco2e_html{{/i18n}}
+  <span class="route-info"><i class="fa fa-check-square fa-fw"></i>{{size_active}}/{{size}}&nbsp;{{#i18n}}plannings.edit.stops{{/i18n}}</span>
+  <span class="route-info"><i class="fa fa-clock-o fa-fw"></i>{{duration}}</span>
+  <span class="route-info"><i class="fa fa-road fa-fw"></i>{{distance}}</span>
+  <span class="route-info"><i class="fa fa-flask fa-fw"></i>{{emission}}&nbsp;{{#i18n}}all.unit.kgco2e_html{{/i18n}}</span>
 </p>
 {{#out_of_date}}
 <p class="text-center">
@@ -35,7 +35,7 @@
         </div>
         <ul id="out_of_route" class="stops sortable list-group" {{#hidden}}style="display: none;"{{/hidden}}>
         {{#stops}}
-          {{#destination}}
+          {{#destination}}{{#visits}}
           <li data-stop_id="{{stop_id}}" class="waypoint ui-state-error list-group-item">
             <i class="fa fa-reorder fa-fw" title="{{#i18n}}plannings.edit.drag_help{{/i18n}}"></i>
             <input type="checkbox" checked="checked" style="display: none"/>
@@ -43,13 +43,13 @@
               {{^geocoded}}
                 <i class="fa fa-map-marker fa-fw" title="{{#i18n}}plannings.edit.error.no_geolocalization{{/i18n}}"></i>
               {{/geocoded}}
-              <span class="name" title="{{name}}">{{name}}</span><br />
+              <span class="name" title="{{name}}{{#index_visit}} #{{index_visit}}{{/index_visit}}">{{name}}</span>{{#index_visit}} #{{index_visit}}{{/index_visit}}<br />
             </div>
             <div class="btn-group pull-right stop-tools">
               {{#geocoded}}
                 <button class="automatic_insert btn btn-inverse btn-xs" title="{{#i18n}}plannings.edit.automatic_insert_help{{/i18n}}"><i class="fa fa-lightbulb-o"></i></button>
               {{/geocoded}}
-              <a href="/destinations/{{id}}/edit?back=true" class="marker_edit btn btn-inverse btn-xs" title="{{#i18n}}plannings.edit.edit_help{{/i18n}}"><i class="fa fa-pencil"></i></a>
+              <a href="/destinations/{{destination_id}}/edit?back=true#collapseVisit{{visit_id}}" class="marker_edit btn btn-inverse btn-xs" title="{{#i18n}}plannings.edit.edit_help{{/i18n}}"><i class="fa fa-pencil"></i></a>
               {{#geocoded}}<a href="#" class="marker btn btn-inverse btn-xs" title="{{#i18n}}plannings.edit.marker_help{{/i18n}}"><i class="fa fa-map-marker"></i></a>{{/geocoded}}
               <div class="btn-group">
                 <button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" title="{{#i18n}}plannings.edit.send_to_route_help{{/i18n}}"><i class="fa fa-truck fa-fw"></i><span class="caret"></span></button>
@@ -67,7 +67,7 @@
             </div>
             <div class="clearfix"></div>
           </li>
-          {{/destination}}
+          {{/visits}}{{/destination}}
         {{/stops}}
         </ul>
       </div>
@@ -77,14 +77,16 @@
       <div class="panel-heading">
         <i class="fa fa-arrows-h"></i>
         <input id="route_ref" class="form-control" type="text" value="{{ref}}" name="route[ref]" placeholder="{{#i18n}}plannings.edit.route_placeholder{{/i18n}}" />
-        <select name="route[color]" class="color_select select2-xs" value="{{color}}">
+        <select name="route[color]" class="color_select select2-xs" value="{{color}}" style="display:none">
           {{#colors}}
             <option value="{{color}}"{{#selected}} selected="selected"{{/selected}}>{{color}}</option>
           {{/colors}}
         </select>
-        <select class="vehicle_select select2-xs" value="{{vehicle_id}}" data-initial-value="{{vehicle_id}}">
+        <span class="fake select2 select2-container select2-container--bootstrap input-sm select2-container--below" dir="ltr" style="display: inline-block;"><span class="selection"><span aria-labelledby="select2-route[color]-uj-container" tabindex="0" class="select2-selection select2-selection--single" role="combobox" aria-autocomplete="list" aria-haspopup="true" aria-expanded="false"><span title="{{color_fake}}" id="select2-route[color]-uj-container" class="select2-selection__rendered"><span class="color_small" style="background:{{color_fake}}"></span></span><span class="select2-selection__arrow" role="presentation"><b role="presentation"></b></span></span></span><span class="dropdown-wrapper" aria-hidden="true"></span></span>
+        <select name="route[vehicle]" class="vehicle_select select2-xs" value="{{vehicle_id}}" data-initial-value="{{vehicle_id}}" style="display:none">
           <option value="{{vehicle_id}}" selected="selected">{{vehicle_id}}</option>
         </select>
+        <span class="fake select2 select2-container select2-container--bootstrap input-sm select2-container--below" dir="ltr" style="display: inline-block;"><span class="selection"><span aria-labelledby="select2-route[vehicle]-uj-container" tabindex="0" class="select2-selection select2-selection--single" role="combobox" aria-autocomplete="list" aria-haspopup="true" aria-expanded="false"><span title="{{vehicle_id}}" id="select2-route[vehicle]-uj-container" class="select2-selection__rendered"><span><span class="color_small" style="background:{{color}};{{#color_fake}} display: none;{{/color_fake}}"></span>&nbsp;<span>{{name}}</span></span></span><span class="select2-selection__arrow" role="presentation"><b role="presentation"></b></span></span></span><span class="dropdown-wrapper" aria-hidden="true"></span></span>
         <div class="btn-group pull-right">
           <a href="{{path}}" class="btn btn-primary btn-xs" title="{{#i18n}}plannings.edit.vehicle_help{{/i18n}}"><i class="fa fa-truck"></i></a>
           <button type="button" class="optimize btn btn-primary btn-xs" title="{{#i18n}}plannings.edit.optimize_help{{/i18n}}"><i class="fa fa-gear"></i></button>
@@ -100,11 +102,19 @@
               <li><a href="/routes/{{route_id}}.excel"><i class="fa fa-table fa-fw"></i> {{#i18n}}plannings.edit.export.spreadsheet_excel{{/i18n}}</a></li>
               <li><a href="/routes/{{route_id}}.gpx"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.gpx_route{{/i18n}}</a></li>
               <li><a href="/routes/{{route_id}}.gpx?track=true"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.gpx_trace{{/i18n}}</a></li>
-              <li><a href="/routes/{{route_id}}.kmz"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.kml_track{{/i18n}}</a></li>
+              {{#contact_email}}
+                <li class="kmz_email">
+                  <a href="/routes/{{route_id}}.kmz?email=1">
+                    <i class="fa fa-envelope fa-fw"></i>
+                    {{#i18n}}plannings.edit.export.kmz_email.action{{/i18n}}
+                  </a>
+                </li>
+              {{/contact_email}}
+              <li><a href="/routes/{{route_id}}.kmz"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.kmz_track{{/i18n}}</a></li>
               {{#tomtom}}
-                <li class="export_tomtom"><a href="/routes/{{route_id}}.tomtom?type=orders"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.tomtom_orders{{/i18n}}</a></li>
-                <li class="export_tomtom"><a href="/routes/{{route_id}}.tomtom?type=waypoints"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.tomtom_waypoints{{/i18n}}</a></li>
-                <li class="export_tomtom"><a href="/routes/{{route_id}}.tomtom?type=empty"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.tomtom_empty{{/i18n}}</a></li>
+                <li class="tomtom_send"><a href="/routes/{{route_id}}.tomtom?type=orders"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.tomtom_send.action{{/i18n}}</a></li>
+                <li class="tomtom_send"><a href="/routes/{{route_id}}.tomtom?type=waypoints"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.tomtom_waypoints{{/i18n}}</a></li>
+                <li class="tomtom_clear"><a href="/routes/{{route_id}}.tomtom?type=empty"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.tomtom_clear.action{{/i18n}}</a></li>
               {{/tomtom}}
               {{#masternaut}}
                 <li class="export_masternaut"><a href="/routes/{{route_id}}.masternaut"><i class="fa fa-mobile fa-fw"></i> {{#i18n}}plannings.edit.export.masternaut{{/i18n}}</a></li>
@@ -125,9 +135,9 @@
               <li><a class="active_all" href="/plannings/{{planning_id}}/{{route_id}}/active/all"><i class="fa fa-check-square-o fa-fw"></i> {{#i18n}}plannings.edit.active_all{{/i18n}}</a></li>
             </ul>
           </div>
-          <i class="fa fa-clock-o fa-fw" title="{{#i18n}}plannings.edit.duration_help{{/i18n}}"></i>{{duration}}/{{work_time}}
-          <i class="fa fa-road fa-fw" title="{{#i18n}}plannings.edit.distance_help{{/i18n}}"></i>{{distance}}
-          {{#quantity}}<i class="fa fa-archive fa-fw" title="{{#i18n}}plannings.edit.quantity_help{{/i18n}}"></i>{{quantity}}{{#capacity}}/{{capacity}}{{/capacity}}{{/quantity}}
+          <span class="route-info"><i class="fa fa-clock-o fa-fw" title="{{#i18n}}plannings.edit.duration_help{{/i18n}}"></i>{{duration}}/{{work_time}}</span>
+          <span class="route-info"><i class="fa fa-road fa-fw" title="{{#i18n}}plannings.edit.distance_help{{/i18n}}"></i>{{distance}}</span>
+          {{#quantity}}<span class="route-info"><i class="fa fa-archive fa-fw" title="{{#i18n}}plannings.edit.quantity_help{{/i18n}}"></i>{{quantity}}{{#capacity}}/{{capacity}}{{/capacity}}{{#capacity_unit}}&nbsp;{{capacity_unit}}{{/capacity_unit}}{{/quantity}}</span>
         {{#route_error}}
           <ul class="ui-state-error">
             {{#route_no_geolocalization}}
@@ -148,10 +158,11 @@
           </ul>
         {{/route_error}}
       </div>
-      <ul class="stops list-group" {{#hidden}}style="display: none;"{{/hidden}}>
+
       {{#store_start}}
+      <ul class="stops list-group" {{#hidden}}style="display: none;"{{/hidden}}>
         <li data-store_id="{{id}}" class="{{type}}{{#error}} ui-state-error{{/error}} list-group-item">
-          <i class="fa fa-home fa-fw"></i>
+          <i class="fa {{icon}}{{^icon}}fa-home{{/icon}} fa-fw" style="color: {{color}}{{^color}}black{{/color}};"></i>
           <div class="title">
             {{^geocoded}}
               <i class="fa fa-map-marker fa-fw" title="{{#i18n}}plannings.edit.error.no_geolocalization{{/i18n}}"></i>
@@ -159,7 +170,11 @@
             {{#no_path}}
               <i class="fa fa-road fa-fw" title="{{#i18n}}plannings.edit.error.no_path{{/i18n}}"></i>
             {{/no_path}}
-            <span class="info">{{#time}}{{time}} - {{/time}}</span>
+            <span class="info">
+              {{#time}}
+                {{time}}{{#with_service_time}}&nbsp;-&nbsp;{{with_service_time}}{{/with_service_time}}
+              {{/time}}
+            </span>
             <span class="name" title="{{name}}">{{name}}</span>
           </div>
           <div class="btn-group pull-right stop-tools">
@@ -167,8 +182,9 @@
           </div>
           <div class="clearfix"></div>
         </li>
-      {{/store_start}}
       </ul>
+      {{/store_start}}
+
       <ul class="stops sortable list-group" {{#hidden}}style="display: none;"{{/hidden}}>
       {{#stops}}
         {{#wait_time}}
@@ -203,7 +219,7 @@
           <div class="clearfix"></div>
         </li>
         {{/rest}}
-        {{#destination}}
+        {{#destination}}{{#visits}}
         <li data-stop_id="{{stop_id}}" class="{{type}}{{#error}} ui-state-error{{/error}} list-group-item">
           <i class="fa fa-reorder fa-fw" title="{{#i18n}}plannings.edit.drag_help{{/i18n}}"></i>
           <span class="number label label-default{{^active}} label-empty{{/active}}{{#color_force}} color_force{{/color_force}}" style="background-color: {{color}};">{{number}}</span>
@@ -225,7 +241,7 @@
               <i class="fa fa-road fa-fw" title="{{#i18n}}plannings.edit.error.no_path_help{{/i18n}}"></i>
             {{/no_path}}
             <span class="info">{{#active}}{{#geocoded}}{{^no_path}}{{time}} - {{/no_path}}{{/geocoded}}{{/active}}</span>
-            <span class="name" title="{{name}}">{{name}}</span>
+            <span class="name" title="{{name}}{{#index_visit}} #{{index_visit}}{{/index_visit}}">{{name}}</span>{{#index_visit}} #{{index_visit}}{{/index_visit}}
           </div>
           <div class="btn-group pull-right stop-tools">
             {{#automatic_insert}}
@@ -233,20 +249,21 @@
                 <button class="automatic_insert btn btn-inverse btn-xs" title="{{#i18n}}plannings.edit.automatic_insert_help{{/i18n}}"><i class="fa fa-lightbulb-o"></i></button>
               {{/geocoded}}
             {{/automatic_insert}}
-            <a href="/destinations/{{id}}/edit?back=true" class="marker_edit btn btn-inverse btn-xs" title="{{#i18n}}plannings.edit.edit_help{{/i18n}}"><i class="fa fa-pencil"></i></a>
+            <a href="/destinations/{{destination_id}}/edit?back=true#collapseVisit{{visit_id}}" class="marker_edit btn btn-inverse btn-xs" title="{{#i18n}}plannings.edit.edit_help{{/i18n}}"><i class="fa fa-pencil"></i></a>
             {{#geocoded}}
               <a href="#" class="marker btn btn-inverse btn-xs" title="{{#i18n}}plannings.edit.marker_help{{/i18n}}"><i class="fa fa-map-marker"></i></a>
             {{/geocoded}}
           </div>
           <div class="clearfix"></div>
         </li>
-        {{/destination}}
+        {{/visits}}{{/destination}}
       {{/stops}}
       </ul>
+
       {{#store_stop}}
       <ul class="stops list-group" {{#hidden}}style="display: none;"{{/hidden}}>
         <li data-store_id="{{id}}" class="{{type}}{{#error}} ui-state-error{{/error}} list-group-item">
-          <i class="fa fa-home fa-fw"></i>
+          <i class="fa {{icon}}{{^icon}}fa-home{{/icon}} fa-fw" style="color: {{color}}{{^color}}black{{/color}};"></i>
           <div class="title">
             {{^geocoded}}
               <i class="fa fa-map-marker fa-fw" title="{{#i18n}}plannings.edit.error.no_geolocalization{{/i18n}}"></i>
@@ -257,7 +274,11 @@
             {{#no_path}}
               <i class="fa fa-road fa-fw" title="{{#i18n}}plannings.edit.error.no_path_help{{/i18n}}"></i>
             {{/no_path}}
-            <span class="info">{{#time}}{{time}} - {{/time}}</span>
+            <span class="info">
+              {{#time}}
+                {{#with_service_time}}{{with_service_time}}&nbsp;-&nbsp;{{/with_service_time}}{{time}}
+              {{/time}}
+            </span>
             <span class="name" title="{{name}}">{{name}}</span>
           </div>
           <div class="btn-group pull-right stop-tools">
@@ -265,8 +286,9 @@
           </div>
           <div class="clearfix"></div>
         </li>
-      {{/store_stop}}
       </ul>
+      {{/store_stop}}
+
     </div>
   {{/vehicle}}
 </li>

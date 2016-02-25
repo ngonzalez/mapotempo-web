@@ -10,7 +10,7 @@ class DestinationsControllerTest < ActionController::TestCase
   end
 
   def around
-    Osrm.stub_any_instance(:compute, [1000, 60, 'trace']) do
+    Routers::Osrm.stub_any_instance(:compute, [1000, 60, 'trace']) do
       yield
     end
   end
@@ -36,7 +36,7 @@ class DestinationsControllerTest < ActionController::TestCase
     get :index, format: :excel
     assert_response :success
     assert_not_nil assigns(:destinations)
-    assert_equal 'b;destination_one;Rue des Lilas;MyString;33200;Bordeau;;49.1857;-0.3735;;;00:05:33;1.0;10:00;11:00;MyString;MyString;tag1', response.body.split("\n").find{ |l| l[0] == 'b' }
+    assert_equal 'destination_one;Rue des Lilas;MyString;33200;Bordeau;;49.1857;-0.3735;;;MyString;MyString;"";b;00:05:33;1.0;10:00;11:00;tag1', response.body.split("\n").find{ |l| l.start_with? 'destination_one' }
   end
 
   test 'should get new' do
@@ -45,10 +45,46 @@ class DestinationsControllerTest < ActionController::TestCase
     assert_valid response
   end
 
-  test 'should create destination' do
-    assert_difference('Stop.count', 1) do
+  test 'should create destination without visit' do
+    assert_no_difference('Stop.count') do
       assert_difference('Destination.count') do
-        post :create, destination: { city: @destination.city, close: @destination.close, lat: @destination.lat, lng: @destination.lng, name: @destination.name, open: @destination.open, postalcode: @destination.postalcode, quantity: @destination.quantity, street: @destination.street, detail: @destination.detail, comment: @destination.comment, phone_number: @destination.phone_number, tag_ids: [tags(:tag_one).id] }
+        assert_no_difference('Visit.count') do
+          post :create, destination: {
+            city: @destination.city,
+            lat: @destination.lat,
+            lng: @destination.lng,
+            name: @destination.name,
+            postalcode: @destination.postalcode,
+            street: @destination.street,
+            detail: @destination.detail,
+            comment: @destination.comment,
+            phone_number: @destination.phone_number
+          }
+        end
+      end
+    end
+
+    assert_redirected_to edit_destination_path(assigns(:destination))
+  end
+
+  test 'should create destination with visit' do
+    assert_difference('Stop.count', 1) do
+      assert_difference('Destination.count', 1) do
+        assert_difference('Visit.count', 1) do
+          post :create, destination: {
+            city: 'Bordeaux',
+            name: 'new dest',
+            postalcode: '33000',
+            comment: 'comment',
+            phone_number: '+336123456789',
+            visits_attributes: [{
+              open: '10:00',
+              close: '18:00',
+              quantity: '10',
+              tag_ids: [tags(:tag_one).id]
+            }]
+          }
+        end
       end
     end
 
@@ -60,8 +96,21 @@ class DestinationsControllerTest < ActionController::TestCase
     d.tags = []
     d.save!
     assert_difference('Stop.count', 1) do
-      assert_difference('Destination.count') do
-        post :create, destination: { city: @destination.city, close: @destination.close, lat: @destination.lat, lng: @destination.lng, name: @destination.name, open: @destination.open, postalcode: @destination.postalcode, quantity: @destination.quantity, street: @destination.street, detail: @destination.detail, comment: @destination.comment, phone_number: @destination.phone_number }
+      assert_difference('Destination.count', 1) do
+        assert_difference('Visit.count', 1) do
+          post :create, destination: {
+            city: 'Bordeaux',
+            name: 'new dest',
+            postalcode: '33000',
+            comment: 'comment',
+            phone_number: '+336123456789',
+            visits_attributes: [{
+              open: '10:00',
+              close: '18:00',
+              quantity: '10'
+            }]
+          }
+        end
       end
     end
 
@@ -86,7 +135,7 @@ class DestinationsControllerTest < ActionController::TestCase
   end
 
   test 'should update destination' do
-    patch :update, id: @destination, destination: { city: @destination.city, close: @destination.close, lat: @destination.lat, lng: @destination.lng, name: @destination.name, open: @destination.open, postalcode: @destination.postalcode, quantity: @destination.quantity, street: @destination.street, detail: @destination.detail, comment: @destination.comment, phone_number: @destination.phone_number }
+    patch :update, id: @destination, destination: { city: @destination.city, lat: @destination.lat, lng: @destination.lng, name: @destination.name, postalcode: @destination.postalcode, street: @destination.street, detail: @destination.detail, comment: @destination.comment, phone_number: @destination.phone_number }
     assert_redirected_to edit_destination_path(assigns(:destination))
   end
 
@@ -155,6 +204,20 @@ class DestinationsControllerTest < ActionController::TestCase
       tempfile: File.new(Rails.root.join('test/fixtures/files/import_invalid.csv')),
     })
     file.original_filename = 'import_invalid.csv'
+
+    assert_difference('Destination.count', 0) do
+      post :upload_csv, import_csv: { replace: false, file: file }
+    end
+
+    assert_template :import
+    assert_valid response
+  end
+
+  test 'should display an error' do
+    file = ActionDispatch::Http::UploadedFile.new({
+      tempfile: File.new(Rails.root.join('test/fixtures/files/import_malformed.csv')),
+    })
+    file.original_filename = 'import_malformed.csv'
 
     assert_difference('Destination.count', 0) do
       post :upload_csv, import_csv: { replace: false, file: file }

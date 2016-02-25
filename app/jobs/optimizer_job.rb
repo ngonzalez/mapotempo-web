@@ -36,7 +36,7 @@ class OptimizerJob < Struct.new(:planning_id, :route_id)
     }
     routes_size = route_actives.length
     route_actives.each_with_index { |route, routes_count|
-      route = Route.find(route.id) # to prevent memory
+      route = Route.find(route.id) # IMPORTANT: Lower Delayed Job Memory Usage
       customer = route.planning.customer
       i = ii = 0
       optimum = route.optimize(Proc.new { |computed, count|
@@ -67,9 +67,9 @@ class OptimizerJob < Struct.new(:planning_id, :route_id)
       if optimum
         route.order(optimum)
         route.save && route.reload # Refresh stops order
-        route.planning.compute
+        route.compute
+        route.save # Because route is not saved below
         route.planning.save
-        customer.save
       end
     }
   end

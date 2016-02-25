@@ -17,8 +17,8 @@ class ZoningTest < ActiveSupport::TestCase
   test 'should apply' do
     o = zonings(:zoning_one)
     assert_equal(
-      {nil => [destinations(:destination_two)], zones(:zone_one) => [destinations(:destination_one)]},
-      o.apply([destinations(:destination_one), destinations(:destination_two)]))
+      {nil => [visits(:visit_two)], zones(:zone_one) => [visits(:visit_one)]},
+      o.apply([visits(:visit_one), visits(:visit_two)]))
   end
 
   test 'should dup' do
@@ -48,7 +48,7 @@ class ZoningTest < ActiveSupport::TestCase
     begin
       store_one = stores(:store_one)
       stub_isochrone = stub_request(:get, 'localhost:1723/0.1/isochrone').with(:query => hash_including({})).
-        to_return(File.new(File.expand_path('../../lib/', __FILE__) + '/isochrone/isochrone-1.json').read)
+        to_return(File.new(File.expand_path('../../web_mocks/', __FILE__) + '/isochrone/isochrone-1.json').read)
       o = zonings(:zoning_one)
       o.isochrone(5, o.customer.vehicle_usage_sets[0], vehicle_usages(:vehicle_usage_one_one))
     ensure

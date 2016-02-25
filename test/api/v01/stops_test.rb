@@ -13,14 +13,14 @@ class V01::StopsTest < ActiveSupport::TestCase
   end
 
   def around
-    Osrm.stub_any_instance(:compute, [1000, 60, 'trace']) do
+    Routers::Osrm.stub_any_instance(:compute, [1000, 60, 'trace']) do
       yield
     end
   end
 
   def api(planning_id, route_id, part = nil, param = {})
     part = part ? '/' + part.to_s : ''
-    "/api/0.1/plannings/#{planning_id}/routes/#{route_id}/stops#{part}.json?api_key=testkey1&" + param.collect{ |k, v| "#{k}=#{v}" }.join('&')
+    "/api/0.1/plannings/#{planning_id}/routes/#{route_id}/stops#{part}.json?api_key=testkey1&" + param.collect{ |k, v| "#{k}=" + URI.escape(v.to_s) }.join('&')
   end
 
   test 'should return customer''s routes' do

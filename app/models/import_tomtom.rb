@@ -32,7 +32,7 @@ class ImportTomtom
     begin
       Customer.transaction do
         address = Mapotempo::Application.config.tomtom.showAddressReport(@customer.tomtom_account, @customer.tomtom_user, @customer.tomtom_password)
-        @importer.import(address, replace, nil, synchronous, true) { |row|
+        @importer.import(address, nil, synchronous, ignore_errors: true, replace: replace) { |row|
           if !row[:tags].nil?
             row[:tags] = row[:tags].join(',')
           end
@@ -40,9 +40,13 @@ class ImportTomtom
           row
         }
       end
-    rescue => e
+    rescue ImportBaseError => e
       errors[:base] << e.message
       return false
     end
+  end
+
+  def warnings
+    @importer.warnings
   end
 end

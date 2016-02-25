@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2014-2015
+# Copyright © Mapotempo, 2014-2016
 #
 # This file is part of Mapotempo.
 #
@@ -23,7 +23,10 @@ class V01::Destinations < Grape::API
     def destination_params
       p = ActionController::Parameters.new(params)
       p = p[:destination] if p.key?(:destination)
-      p.permit(:ref, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :quantity, :take_over, :open, :close, :comment, :phone_number, :geocoding_accuracy, :geocoding_level, tag_ids: [])
+      if p[:visits]
+        p[:visits_attributes] = p[:visits]
+      end
+      p.permit(:ref, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :comment, :phone_number, :geocoding_accuracy, :geocoding_level, tag_ids: [], visits_attributes: [:id, :ref, :quantity, :take_over, :open, :close, tag_ids: []])
     end
 
     ID_DESC = 'Id or the ref field value, then use "ref:[value]".'
@@ -78,7 +81,9 @@ class V01::Destinations < Grape::API
 
     desc 'Import destinations by upload a CSV file, by JSON or from TomTom',
       nickname: 'importDestinations',
-      params: V01::Entities::DestinationsImport.documentation
+      params: V01::Entities::DestinationsImport.documentation,
+      is_array: true,
+      entity: [V01::Entities::Destination, V01::Entities::DestinationsImport]
     put do
       import = if params[:destinations]
         ImportJson.new(importer: ImporterDestinations.new(current_customer), replace: params[:replace], json: params[:destinations])
@@ -90,8 +95,11 @@ class V01::Destinations < Grape::API
         ImportCsv.new(importer: ImporterDestinations.new(current_customer), replace: params[:replace], file: params[:file])
       end
 
-      if import && import.valid? && import.import(true)
-        status 204
+      if import && import.valid? && (destinations = import.import(true))
+        case params[:remote]
+          when 'tomtom' then status 202
+          else present destinations, with: V01::Entities::Destination
+        end
       else
         error!({error: import && import.errors.full_messages}, 422)
       end
@@ -143,12 +151,12 @@ class V01::Destinations < Grape::API
     desc 'Geocode destination.',
       detail: 'Result of geocoding is not saved with this operation. You can use update operation to save the result of geocoding.',
       nickname: 'geocodeDestination',
-      params: V01::Entities::Destination.documentation.except(:id).deep_merge(
+      params: V01::Entities::Destination.documentation.except(:id, :visits_attributes).deep_merge(
         geocoding_accuracy: { values: 0..1 }
       ),
       entity: V01::Entities::Destination
     patch 'geocode' do
-      destination = current_customer.destinations.build(destination_params)
+      destination = current_customer.destinations.build(destination_params.except(:id, :visits_attributes))
       destination.geocode
       present destination, with: V01::Entities::Destination
     end
@@ -156,9 +164,9 @@ class V01::Destinations < Grape::API
     if Mapotempo::Application.config.geocode_complete
       desc 'Auto completion on destination.',
         nickname: 'autocompleteDestination',
-        params: V01::Entities::Destination.documentation.except(:id)
+        params: V01::Entities::Destination.documentation.except(:id, :visits_attributes)
       patch 'geocode_complete' do
-        p = destination_params
+        p = destination_params.except(:id, :visits_attributes)
         address_list = Mapotempo::Application.config.geocode_geocoder.complete(p[:street], p[:postalcode], p[:city], p[:country] || current_customer.default_country, current_customer.stores[0].lat, current_customer.stores[0].lng)
         address_list = address_list.collect{ |i| {street: i[0], postalcode: i[1], city: i[2]} }
         address_list

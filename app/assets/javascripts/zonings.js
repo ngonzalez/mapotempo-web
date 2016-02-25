@@ -19,9 +19,6 @@ var zonings_edit = function(params) {
 
   var zoning_id = params.zoning_id,
     planning_id = params.planning_id,
-    map_layers = params.map_layers,
-    map_lat = params.map_lat,
-    map_lng = params.map_lng,
     vehicles_array = params.vehicles_array,
     vehicles_map = params.vehicles_map,
     url_click2call =  params.url_click2call,
@@ -31,29 +28,7 @@ var zonings_edit = function(params) {
   var sidebar = L.control.sidebar('edit-zoning', {position: 'right'})
   sidebar.open('zoning');
 
-  var map_layer;
-  map_layers = $.map(map_layers, function(layer, i) {
-    var l = L.tileLayer(layer.url, {
-      maxZoom: 18,
-      attribution: layer.attribution
-    });
-    l.name = layer.name;
-    if(layer.default) {
-      map_layer = l;
-    }
-    return l;
-  });
-
-  var map_layer_names = {};
-  $.each(map_layers, function(i, layer) {
-    map_layer_names[layer.name] = layer;
-  });
-
-  var map = new L.Map('map', {
-    attributionControl: false,
-    layers: map_layer
-  }).setView([map_lat, map_lng], 13);
-  //L.control.layers(map_layer_names).addTo(map);
+  var map = mapInitialize(params);
   L.control.attribution({prefix: false, position: 'bottomleft'}).addTo(map);
   L.control.scale({
     imperial: false
@@ -279,11 +254,12 @@ var zonings_edit = function(params) {
       store.i18n = mustache_i18n;
       if ($.isNumeric(store.lat) && $.isNumeric(store.lng)) {
         var m = L.marker(new L.LatLng(store.lat, store.lng), {
-          icon: L.icon({
-            iconUrl: '/images/marker-home' + (store.color ? ('-' + store.color.substr(1)) : '') + '.svg',
-            iconSize: new L.Point(32, 32),
-            iconAnchor: new L.Point(16, 16),
-            popupAnchor: new L.Point(0, -12)
+          icon: L.divIcon({
+            html: '<i class="fa ' + (store.icon || 'fa-home') + ' ' + map.iconSize[store.icon_size || 'large'].name + ' store-icon" style="color: ' + (store.color || 'black') + ';"></i>',
+            iconSize: new L.Point(map.iconSize[store.icon_size || 'large'].size, map.iconSize[store.icon_size || 'large'].size),
+            iconAnchor: new L.Point(map.iconSize[store.icon_size || 'large'].size / 2, map.iconSize[store.icon_size || 'large'].size / 2),
+            popupAnchor: new L.Point(0, -Math.floor(map.iconSize[store.icon_size || 'large'].size / 2.5)),
+            className: 'store-icon-container'
           })
         }).addTo(stores_marker).bindPopup(SMT['stops/show']({
           stop: store
@@ -421,8 +397,6 @@ var zonings_edit = function(params) {
     complete: completeWaiting,
     error: ajaxError
   });
-
-  hideAlert('.alert-success', timeAlert);
 }
 
 Paloma.controller('Zoning').prototype.new = function() {};

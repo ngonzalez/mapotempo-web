@@ -17,7 +17,7 @@
 #
 class Tomtom
 
-  def self.fetch_device_id(customer)
+  def self.fetch_devices(customer)
     Mapotempo::Application.config.tomtom.showObjectReport(customer.tomtom_account, customer.tomtom_user, customer.tomtom_password)
   end
 
@@ -31,7 +31,7 @@ class Tomtom
     customer = route.planning.customer
     position = route.vehicle_usage.default_store_start
     if position && !position.lat.nil? && !position.lng.nil?
-      Mapotempo::Application.config.tomtom.sendDestinationOrder(customer.tomtom_account, customer.tomtom_user, customer.tomtom_password, route.vehicle_usage.vehicle.tomtom_id, date, position, -1, route.vehicle_usage.default_store_start ? route.vehicle_usage.default_store_start.name : '', route.start)
+      Mapotempo::Application.config.tomtom.sendDestinationOrder(customer.tomtom_account, customer.tomtom_user, customer.tomtom_password, route.vehicle_usage.vehicle.tomtom_id, date, position, -1, route.vehicle_usage.default_store_start && route.vehicle_usage.default_store_start.name || "#{position.lat} #{position.lng}", route.start)
     end
     route.stops.select(&:active).each{ |stop|
       position = stop if stop.position?
@@ -39,8 +39,8 @@ class Tomtom
         description = [
           '',
           stop.name,
-          stop.is_a?(StopDestination) ? (route.planning.customer.enable_orders ? (stop.order ? stop.order.products.collect(&:code).join(',') : '') : stop.destination.quantity && stop.destination.quantity > 1 ? "x#{stop.destination.quantity}" : nil) : nil,
-          stop.is_a?(StopDestination) ? (stop.destination.take_over ? '(' + stop.destination.take_over.strftime('%H:%M:%S') + ')' : nil) : route.vehicle_usage.default_rest_duration.strftime('%H:%M:%S'),
+          stop.is_a?(StopVisit) ? (route.planning.customer.enable_orders ? (stop.order ? stop.order.products.collect(&:code).join(',') : '') : stop.visit.quantity && stop.visit.quantity > 1 ? "x#{stop.visit.quantity}" : nil) : nil,
+          stop.is_a?(StopVisit) ? (stop.visit.take_over ? '(' + stop.visit.take_over.strftime('%H:%M:%S') + ')' : nil) : route.vehicle_usage.default_rest_duration.strftime('%H:%M:%S'),
           stop.open || stop.close ? (stop.open ? stop.open.strftime('%H:%M') : '') + '-' + (stop.close ? stop.close.strftime('%H:%M') : '') : nil,
           stop.detail,
           stop.comment,
@@ -51,7 +51,7 @@ class Tomtom
     }
     position = route.vehicle_usage.default_store_stop
     if !position.nil? && !position.lat.nil? && !position.lng.nil?
-      Mapotempo::Application.config.tomtom.sendDestinationOrder(customer.tomtom_account, customer.tomtom_user, customer.tomtom_password, route.vehicle_usage.vehicle.tomtom_id, date, position, -2, route.vehicle_usage.default_store_stop ? route.vehicle_usage.default_store_stop.name : '', route.start)
+      Mapotempo::Application.config.tomtom.sendDestinationOrder(customer.tomtom_account, customer.tomtom_user, customer.tomtom_password, route.vehicle_usage.vehicle.tomtom_id, date, position, -2, route.vehicle_usage.default_store_stop && route.vehicle_usage.default_store_stop.name || "#{position.lat} #{position.lng}", route.start)
     end
   end
 
@@ -80,7 +80,7 @@ class Tomtom
           position.lat,
           position.lng,
           '',
-          stop.is_a?(StopDestination) ? (route.planning.customer.enable_orders ? (stop.order ? stop.order.products.collect(&:code).join(',') : '') : stop.destination.quantity && stop.destination.quantity > 1 ? "x#{stop.destination.quantity}" : nil) : nil,
+          stop.is_a?(StopVisit) ? (route.planning.customer.enable_orders ? (stop.order ? stop.order.products.collect(&:code).join(',') : '') : stop.visit.quantity && stop.visit.quantity > 1 ? "x#{stop.visit.quantity}" : nil) : nil,
           stop.name,
           stop.comment,
           stop.phone_number
@@ -91,6 +91,11 @@ class Tomtom
         {lat: l[0], lng: l[1], description: description}
     }
     position = route.vehicle_usage.default_store_stop if route.vehicle_usage.default_store_stop && !route.vehicle_usage.default_store_stop.lat.nil? && !route.vehicle_usage.default_store_stop.lng.nil?
-    Mapotempo::Application.config.tomtom.sendDestinationOrder(customer.tomtom_account, customer.tomtom_user, customer.tomtom_password, route.vehicle_usage.vehicle.tomtom_id, date, position, route.vehicle_usage.id, route.ref || (route.vehicle_usage.default_store_stop ? route.vehicle_usage.default_store_stop.name : ''), route.start, waypoints)
+    description = route.ref || (waypoints[-1] && waypoints[-1][:description]) || "#{waypoints[-1][:lat]} #{waypoints[-1][:lng]}"
+    Mapotempo::Application.config.tomtom.sendDestinationOrder(customer.tomtom_account, customer.tomtom_user, customer.tomtom_password, route.vehicle_usage.vehicle.tomtom_id, date, position, route.vehicle_usage.id, description, route.start, waypoints)
+  end
+
+  def self.current_position(customer)
+    Mapotempo::Application.config.tomtom.showObjectReport(customer.tomtom_account, customer.tomtom_user, customer.tomtom_password)
   end
 end

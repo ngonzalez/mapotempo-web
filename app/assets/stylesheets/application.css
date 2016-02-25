@@ -32,6 +32,7 @@
  *= require jquery-ui/slider
  *= require select2
  *= require select2-bootstrap
+ *= require bootstrap-select
  *= require jquery-tablesorter/theme.bootstrap
  *= require jquery.simplecolorpicker
  *= require jquery.simplecolorpicker-fontawesome
@@ -47,5 +48,6 @@
  *= require leaflet.markercluster
  *= require leaflet.markercluster.default
  *= require leaflet-sidebar
+ *= require pnotify
  *= require_tree .
  */

@@ -22,12 +22,16 @@ class ImportCsv
   include ActiveRecord::AttributeAssignment
   extend ActiveModel::Translation
 
-  attr_accessor :importer, :replace, :file
+  attr_accessor :importer, :replace, :file, :delete_plannings
   validates :file, presence: true
   validate :data
 
   def replace=(value)
     @replace = ValueToBoolean.value_to_boolean(value)
+  end
+
+  def delete_plannings=(value)
+    @delete_plannings = ValueToBoolean.value_to_boolean(value)
   end
 
   def name
@@ -38,11 +42,11 @@ class ImportCsv
     if data
       begin
         Customer.transaction do
-          @importer.import(data, replace, name, synchronous, false) { |row|
+          @importer.import(data, name, synchronous, ignore_errors: false, replace: replace, delete_plannings: delete_plannings) { |row|
             # Switch from locale to internal column name
             r, row = row, {}
             @importer.columns.each{ |k, v|
-              if r.key?(v) && r[v]
+              if r.key?(v)
                 row[k] = r[v]
               end
             }
@@ -50,7 +54,7 @@ class ImportCsv
             row
           }
         end
-      rescue => e
+      rescue ImportBaseError => e
         errors[:base] << e.message
         return false
       end
@@ -82,9 +86,14 @@ class ImportCsv
     splitComma, splitSemicolon, splitTab = line.split(','), line.split(';'), line.split("\t")
     _split, separator = [[splitComma, ',', splitComma.size], [splitSemicolon, ';', splitSemicolon.size], [splitTab, "\t", splitTab.size]].max{ |a, b| a[2] <=> b[2] }
 
-    data = CSV.parse(contents, col_sep: separator, headers: true).collect(&:to_hash)
-    if data.length > @importer.max_lines + 1
-      errors[:file] << I18n.t('destinations.import_file.too_many_lines', n: @importer.max_lines)
+    begin
+      data = CSV.parse(contents, col_sep: separator, headers: true).collect(&:to_hash)
+      if data.length > @importer.max_lines + 1
+        errors[:file] << I18n.t('destinations.import_file.too_many_lines', n: @importer.max_lines)
+        return false
+      end
+    rescue CSV::MalformedCSVError => e
+      errors[:file] << e.message
       return false
     end
 

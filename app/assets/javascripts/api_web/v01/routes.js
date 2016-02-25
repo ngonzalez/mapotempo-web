@@ -18,18 +18,11 @@
 
 var api_web_v01_routes_index = function(params) {
   var progressBar = Turbolinks.enableProgressBar();
-  progressBar.advanceTo(25);
+  progressBar && progressBar.advanceTo(25);
 
   var planning_id = params.planning_id,
-    map_layer_url = params.map_layer_url,
-    map_lat = params.map_lat,
-    map_lng = params.map_lng,
-    map_attribution = params.map_attribution,
     route_ids = params.route_ids,
     vehicles_map = params.vehicles_map,
-    map = new L.Map('map', {
-      attributionControl: false
-    }).setView([map_lat, map_lng], 13),
     markers = {},
     stores = {},
     layers = {},
@@ -37,8 +30,8 @@ var api_web_v01_routes_index = function(params) {
     routes_layers,
     routes_layers_cluster;
 
+  var map = mapInitialize(params);
   L.control.attribution({prefix: false}).addTo(map);
-
   L.control.scale({
     imperial: false
   }).addTo(map);
@@ -73,10 +66,28 @@ var api_web_v01_routes_index = function(params) {
     }
   });
 
-  L.tileLayer(map_layer_url, {
-    maxZoom: 18,
-    attribution: map_attribution
-  }).addTo(map);
+  var routeStepTrace = L.Polyline.extend({
+    addDriveInfos: function(drive_time, distance) {
+      var color = this.options.color;
+      this.on('mouseover', function(e) {
+        var layer = e.target;
+        layer.setStyle({
+          opacity: 0.9,
+          weight: 7
+        });
+      });
+      this.on('mouseout', function(e) {
+        var layer = e.target;
+        layer.setStyle({
+          opacity: 0.5,
+          weight: 5
+        });
+        this.closePopup();
+      });
+      this.bindPopup('<div>' + I18n.t('plannings.edit.popup.stop_drive_time') + ' ' + ('0' + parseInt(drive_time / 3600) % 24).slice(-2) + ':' + ('0' + parseInt(drive_time / 60) % 60).slice(-2) + ':' + ('0' + (drive_time % 60)).slice(-2) + '</div><div>' + I18n.t('plannings.edit.popup.stop_distance') + ' ' + distance.toFixed(1) + ' km</div>');
+      return this;
+    }
+  });
 
   var display_planning = function(data) {
     $.each(data.routes, function(i, route) {
@@ -86,51 +97,10 @@ var api_web_v01_routes_index = function(params) {
     });
 
     data.i18n = mustache_i18n;
-    data.planning_id = data.id;
     $("#planning").html(SMT['plannings/edit'](data));
 
-
-    var stores_marker = L.featureGroup();
-    stores = {};
-    $.each(data.stores, function(i, store) {
-      store.store = true;
-      store.planning_id = data.planning_id;
-      if ($.isNumeric(store.lat) && $.isNumeric(store.lng)) {
-        var m = L.marker(new L.LatLng(store.lat, store.lng), {
-          icon: L.icon({
-            iconUrl: '/images/marker-home' + (store.color ? ('-' + store.color.substr(1)) : '') + '.svg',
-            iconSize: new L.Point(32, 32),
-            iconAnchor: new L.Point(16, 16),
-            popupAnchor: new L.Point(0, -12)
-          })
-        }).addTo(stores_marker).bindPopup(SMT['stops/show']({stop: store}), {
-          minWidth: 200,
-          autoPan: false
-        });
-        m.on('mouseover', function(e) {
-          m.openPopup();
-        }).on('mouseout', function(e) {
-          if (!m.click) {
-            m.closePopup();
-          }
-        }).off('click').on('click', function(e) {
-          if (m.click) {
-            m.closePopup();
-          } else {
-            m.click = true;
-            m.openPopup();
-          }
-        }).on('popupclose', function(e) {
-          m.click = false;
-        });
-        stores[store.id] = m;
-      }
-    });
-    stores_marker.addTo(map);
-
-
     $.each(data.routes, function(i, route) {
-      var color = route.vehicle ? route.vehicle.color : '#707070';
+      var color = route.color ? route.color : (route.vehicle ? route.vehicle.color : '#707070');
       var vehicle_name;
       if (route.vehicle) {
         vehicle_name = route.vehicle.name;
@@ -169,26 +139,27 @@ var api_web_v01_routes_index = function(params) {
 
       $.each(route.stops, function(index, stop) {
         if (stop.trace) {
-          var polyline = new L.Polyline(L.PolylineUtil.decode(stop.trace, 6));
-          L.polyline(polyline.getLatLngs(), {
+          (new routeStepTrace(L.PolylineUtil.decode(stop.trace, 6), {
             color: color
-          }).addTo(layers[route.route_id]);
-          L.polyline(polyline.getLatLngs(), {
+          })).addDriveInfos(stop.drive_time, stop.distance).addTo(layers[route.route_id]);
+          (new routeStepTrace(L.PolylineUtil.decode(stop.trace, 6), {
             offset: 3,
             color: color
-          }).addTo(layers_cluster[route.route_id]);
+          })).addDriveInfos(stop.drive_time, stop.distance).addTo(layers_cluster[route.route_id]);
         }
         if (stop.destination && $.isNumeric(stop.lat) && $.isNumeric(stop.lng)) {
           stop.i18n = mustache_i18n;
-          stop.color = stop.destination.color || color;
+          stop.color = color;
           stop.vehicle_name = vehicle_name;
           stop.route_id = route.route_id;
           stop.routes = data.routes;
+          if ((data.routes && data.routes.length == 1) || (route_ids && route_ids.length == 1))
+            stop.one_route = true;
           stop.planning_id = data.planning_id;
           var m = L.marker(new L.LatLng(stop.lat, stop.lng), {
             icon: new L.NumberedDivIcon({
               number: stop.number,
-              iconUrl: '/images/' + (stop.destination.icon || 'point') + '-' + stop.color.substr(1) + '.svg',
+              iconUrl: '/images/' + (stop.destination.icon || 'point') + '-' + (stop.destination.color || color).substr(1) + '.svg',
               iconSize: new L.Point(12, 12),
               iconAnchor: new L.Point(6, 6),
               popupAnchor: new L.Point(0, -6),
@@ -219,10 +190,13 @@ var api_web_v01_routes_index = function(params) {
         }
       });
       if (route.store_stop && route.store_stop.stop_trace) {
-        var polyline = new L.Polyline(L.PolylineUtil.decode(route.store_stop.stop_trace, 6));
-        L.polyline(polyline.getLatLngs(), {
+        (new routeStepTrace(L.PolylineUtil.decode(route.store_stop.stop_trace, 6), {
           color: color
-        }).addTo(layers[route.route_id]).addTo(layers_cluster[route.route_id]);
+        })).addDriveInfos(route.store_stop.stop_drive_time, route.store_stop.stop_distance).addTo(layers[route.route_id]);
+        (new routeStepTrace(L.PolylineUtil.decode(route.store_stop.stop_trace, 6), {
+          offset: 3,
+          color: color
+        })).addDriveInfos(route.store_stop.stop_drive_time, route.store_stop.stop_distance).addTo(layers_cluster[route.route_id]);
       }
 
       routes_layers_cluster.addLayer(layers_cluster[route.route_id]);
@@ -236,6 +210,46 @@ var api_web_v01_routes_index = function(params) {
       layers_cluster[route.route_id] = L.featureGroup();
     });
     display_planning(data);
+
+    var stores_marker = L.featureGroup();
+    stores = {};
+    $.each(data.stores, function(i, store) {
+      store.store = true;
+      store.planning_id = data.planning_id;
+      if ($.isNumeric(store.lat) && $.isNumeric(store.lng)) {
+        var m = L.marker(new L.LatLng(store.lat, store.lng), {
+          icon: L.divIcon({
+            html: '<i class="fa ' + (store.icon || 'fa-home') + ' ' + map.iconSize[store.icon_size || 'large'].name + ' store-icon" style="color: ' + (store.color || 'black') + ';"></i>',
+            iconSize: new L.Point(map.iconSize[store.icon_size || 'large'].size, map.iconSize[store.icon_size || 'large'].size),
+            iconAnchor: new L.Point(map.iconSize[store.icon_size || 'large'].size / 2, map.iconSize[store.icon_size || 'large'].size / 2),
+            popupAnchor: new L.Point(0, -Math.floor(map.iconSize[store.icon_size || 'large'].size / 2.5)),
+            className: 'store-icon-container'
+          })
+        }).addTo(stores_marker).bindPopup(SMT['stops/show']({stop: store}), {
+          minWidth: 200,
+          autoPan: false
+        });
+        m.on('mouseover', function(e) {
+          m.openPopup();
+        }).on('mouseout', function(e) {
+          if (!m.click) {
+            m.closePopup();
+          }
+        }).off('click').on('click', function(e) {
+          if (m.click) {
+            m.closePopup();
+          } else {
+            m.click = true;
+            m.openPopup();
+          }
+        }).on('popupclose', function(e) {
+          m.click = false;
+        });
+        stores[store.id] = m;
+      }
+    });
+    stores_marker.addTo(map);
+
     var bounds = routes_layers.getBounds();
     if (bounds && bounds.isValid()) {
       map.fitBounds(bounds.pad(1.1), {
@@ -244,7 +258,7 @@ var api_web_v01_routes_index = function(params) {
     }
   }
 
-  progressBar.advanceTo(50);
+  progressBar && progressBar.advanceTo(50);
   queryParam = (route_ids) ? ('?' + $.param({ids: route_ids.join(',')})) : '';
   $.ajax({
     url: '/api-web/0.1/plannings/' + planning_id + '/routes.json' + queryParam,
@@ -254,9 +268,9 @@ var api_web_v01_routes_index = function(params) {
         display_planning_first_time(data);
       }
       else {
-        bootstrap_alert_danger(I18n.t('api_web.v01.routes.index.none_routes'));
+        stickyError(I18n.t('api_web.v01.routes.index.none_routes'));
       }
-      progressBar.done();
+      progressBar && progressBar.done();
     },
     complete: completeWaiting,
     error: ajaxError

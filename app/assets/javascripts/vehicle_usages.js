@@ -15,8 +15,9 @@
 // along with Mapotempo. If not, see:
 // <http://www.gnu.org/licenses/agpl.html>
 //
+
 var vehicle_usages_form = function(params) {
-  $('#vehicle_usage_open, #vehicle_usage_close, #vehicle_usage_rest_start, #vehicle_usage_rest_stop, #vehicle_usage_rest_duration').timeEntry({
+  $('#vehicle_usage_open, #vehicle_usage_close, #vehicle_usage_rest_start, #vehicle_usage_rest_stop, #vehicle_usage_rest_duration, #vehicle_usage_service_time_start, #vehicle_usage_service_time_end').timeEntry({
     show24Hours: true,
     spinnerImage: ''
   });
@@ -25,27 +26,37 @@ var vehicle_usages_form = function(params) {
     theme: 'fontawesome'
   });
 
-  $('#vehicle_usage_vehicle_tomtom_id').select2({
-    theme: 'bootstrap',
-    width: '100%',
-    minimumResultsForSearch: -1,
-    ajax: {
+  function observeTomTom(params) {
+    $.ajax({
       url: '/api/0.1/customers/' + params.customer_id + '/tomtom_ids',
       dataType: 'json',
-      processResults: function (data, page) {
+      error: ajaxError,
+      success: function(data, textStatus, jqXHR) {
+
         data[''] = ' ';
-        return {
-          results: $.map(data, function(o, k) {
-            return {
-              id: k,
-              text: o
-            };
-          })
-        };
-      },
-      cache: true
-    },
-  });
+
+        $('#vehicle_usage_vehicle_tomtom_id').select2({
+          data: $.map(data, function(name, id) {
+            return { id: id, text: name }
+          }),
+          theme: 'bootstrap',
+          width: '100%',
+          minimumResultsForSearch: -1,
+          templateResult: function(data_selection) {
+            return data_selection.text;
+          },
+          templateSelection: function(data_selection) {
+            return data_selection.text;
+          }
+        });
+
+        $('#vehicle_usage_vehicle_tomtom_id').val(params.tomtom_id).trigger('change');
+      }
+    });
+  }
+
+  if (params.tomtom) observeTomTom(params);
+
 }
 
 Paloma.controller('VehicleUsage').prototype.new = function() {

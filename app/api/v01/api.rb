@@ -77,13 +77,16 @@ class V01::Api < Grape::API
     Rails.logger.error "\n\n#{e.class} (#{e.message}):\n    " + e.backtrace.join("\n    ") + "\n\n"
     response = {message: e.message}
     if ENV['RAILS_ENV'] == 'test'
-      response[:backtrace] = e.backtrace[0..10].join("\n    ")
+      response[:backtrace] = Rails.backtrace_cleaner.clean(e.backtrace)[0..10].join("\n    ")
+    elsif ENV['RAILS_ENV'] == 'development'
+      puts e.backtrace
     end
     rack_response(response.to_json, 500)
   end
 
   mount V01::Customers
   mount V01::Destinations
+  mount V01::Devices
   mount V01::Layers
   mount V01::OrderArrays
   mount V01::Orders
@@ -99,6 +102,7 @@ class V01::Api < Grape::API
   mount V01::Vehicles
   mount V01::VehicleUsages
   mount V01::VehicleUsageSets
+  mount V01::Visits
   mount V01::Zonings
 
   # Tools

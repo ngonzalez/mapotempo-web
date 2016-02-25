@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2014-2015
+# Copyright © Mapotempo, 2014-2016
 #
 # This file is part of Mapotempo.
 #
@@ -59,7 +59,7 @@ class V01::Routes < Grape::API
           nickname: 'getRoute',
           entity: V01::Entities::Route
         params do
-          requires :id, type: Integer
+          requires :id, type: String, desc: ID_DESC
         end
         get ':id' do
           planning_id = ParseIdsRefs.read(params[:planning_id])
@@ -72,7 +72,7 @@ class V01::Routes < Grape::API
           params: V01::Entities::Route.documentation.slice(:hidden, :locked, :color),
           entity: V01::Entities::Route
         params do
-          requires :id, type: Integer
+          requires :id, type: String, desc: ID_DESC
         end
         put ':id' do
           planning_id = ParseIdsRefs.read(params[:planning_id])
@@ -88,7 +88,7 @@ class V01::Routes < Grape::API
           nickname: 'activationStops',
           entity: V01::Entities::Route
         params do
-          requires :id, type: Integer
+          requires :id, type: String, desc: ID_DESC
           requires :active, type: String, values: ['all', 'reverse', 'none']
         end
         patch ':id/active/:active' do
@@ -101,25 +101,25 @@ class V01::Routes < Grape::API
           end
         end
 
-        desc 'Move destination to routes. Append in order at end.',
-          detail: 'Set a new A route (or vehicle) for a destination which was in a previous B route in the same planning.',
-          nickname: 'moveDestinations'
+        desc 'Move visit to routes. Append in order at end.',
+          detail: 'Set a new A route (or vehicle) for a visit which was in a previous B route in the same planning.',
+          nickname: 'moveVisits'
         params do
-          requires :id, type: String
-          requires :destination_ids, type: Array[Integer], documentation: {param_type: 'form'}
+          requires :id, type: String, desc: ID_DESC
+          requires :visit_ids, type: Array[Integer], documentation: {param_type: 'form'}
         end
-        patch ':id/destinations/moves' do
+        patch ':id/visits/moves' do
           planning_id = ParseIdsRefs.read(params[:planning_id])
           planning = current_customer.plannings.find{ |planning| planning_id[:ref] ? planning.ref == planning_id[:ref] : planning.id == planning_id[:id] }
           id = ParseIdsRefs.read(params[:id])
           route = planning.routes.find{ |route| id[:ref] ? route.ref == id[:ref] : route.id == id[:id] }
-          ids = params[:destination_ids].collect{ |i| Integer(i) }
-          destinations = current_customer.destinations.select{ |destination| ids.include?(destination.id) }
+          ids = params[:visit_ids].collect{ |i| Integer(i) }
+          visits = current_customer.visits.select{ |visit| ids.include?(visit.id) }
 
-          if route && planning && destinations
+          if route && planning && visits
             Planning.transaction do
-              destinations.each{ |destination|
-                route.move_destination(destination, -1)
+              visits.each{ |visit|
+                route.move_visit(visit, -1)
               }
               planning.save!
             end
@@ -134,7 +134,7 @@ class V01::Routes < Grape::API
           detail: 'Get the shortest route in time.',
           nickname: 'optimizeRoute'
         params do
-          requires :id, type: Integer
+          requires :id, type: String, desc: ID_DESC
         end
         patch ':id/optimize' do
           planning_id = ParseIdsRefs.read(params[:planning_id])

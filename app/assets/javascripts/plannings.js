@@ -45,10 +45,7 @@ var plannings_edit = function(params) {
 
   var planning_id = params.planning_id,
     zoning_id = params.zoning_id,
-    map_layers = params.map_layers,
-    map_lat = params.map_lat,
-    map_lng = params.map_lng,
-    route_ids = params.route_ids,
+    routes_array = params.routes_array,
     vehicles_array = params.vehicles_array,
     vehicles_usages_map = params.vehicles_usages_map,
     url_click2call = params.url_click2call,
@@ -66,29 +63,7 @@ var plannings_edit = function(params) {
   var sidebar = L.control.sidebar('edit-planning', {position: 'right'});
   sidebar.open('planning-pane');
 
-  var map_layer;
-  map_layers = $.map(map_layers, function(layer, i) {
-    var l = L.tileLayer(layer.url, {
-      maxZoom: 18,
-      attribution: layer.attribution
-    });
-    l.name = layer.name;
-    if(layer.default) {
-      map_layer = l;
-    }
-    return l;
-  });
-
-  var map_layer_names = {};
-  $.each(map_layers, function(i, layer) {
-    map_layer_names[layer.name] = layer;
-  });
-
-  var map = new L.Map('map', {
-    attributionControl: false,
-    layers: map_layer
-  }).setView([map_lat, map_lng], 13);
-  //L.control.layers(map_layer_names).addTo(map);
+  var map = mapInitialize(params);
   L.control.attribution({prefix: false, position: 'bottomleft'}).addTo(map);
   L.control.scale({
     imperial: false
@@ -127,9 +102,9 @@ var plannings_edit = function(params) {
     }
   });
 
-  $.each(route_ids, function(i, id) {
-    layers[id] = L.featureGroup();
-    layers_cluster[id] = L.featureGroup();
+  $.each(routes_array, function(i, route) {
+    layers[route.route_id] = L.featureGroup();
+    layers_cluster[route.route_id] = L.featureGroup();
   });
 
   var enlighten_stop = function(stop_id) {
@@ -223,118 +198,152 @@ var plannings_edit = function(params) {
     });
   }
 
-  var display_route = function(data, route) {
-      var color = route.color || (route.vehicle && route.vehicle.color) || '#707070';
-      var vehicle_name;
-      if (route.vehicle) {
-        vehicle_name = route.vehicle.name;
-      }
+  var routeStepTrace = L.Polyline.extend({
+    addDriveInfos: function(drive_time, distance) {
+      this.on('mouseover', function(e) {
+        var layer = e.target;
+        layer.setStyle({
+          opacity: 0.9,
+          weight: 7
+        });
+      });
+      this.on('mouseout', function(e) {
+        var layer = e.target;
+        layer.setStyle({
+          opacity: 0.5,
+          weight: 5
+        });
+        //this.closePopup(); // doesn't work with Firefox
+      });
+      var driveTime = (drive_time !== null) ? ('0' + parseInt(drive_time / 3600) % 24).slice(-2) + ':' + ('0' + parseInt(drive_time / 60) % 60).slice(-2) + ':' + ('0' + (drive_time % 60)).slice(-2) : '';
+      this.bindPopup((driveTime ? '<div>' + I18n.t('plannings.edit.popup.stop_drive_time') + ' ' + driveTime + '</div>' : '') + '<div>' + I18n.t('plannings.edit.popup.stop_distance') + ' ' + distance.toFixed(1) + ' km</div>');
+      return this;
+    }
+  });
 
-      routes_layers.removeLayer(layers[route.route_id]);
-      routes_layers_cluster.removeLayer(layers_cluster[route.route_id]);
-      layers[route.route_id] = L.featureGroup();
-      layers_cluster[route.route_id] = new L.MarkerClusterGroup({
-        showCoverageOnHover: false,
-        maxClusterRadius: 1,
-        spiderfyDistanceMultiplier: 0.5,
-        iconCreateFunction: function(cluster) {
-          var markers = cluster.getAllChildMarkers();
-          var n = [], i;
-          for (i = 0; i < markers.length; i++) {
-            if (markers[i].number) {
-              if (n.length < 2) {
-                n.push(markers[i].number);
-              } else {
-                n = [n[0], "…"];
-                break;
-              }
+  var display_route = function(data, route) {
+    var color = route.color || (route.vehicle && route.vehicle.color) || '#707070';
+    var vehicle_name;
+    if (route.vehicle) {
+      vehicle_name = route.vehicle.name;
+    }
+
+    routes_layers.removeLayer(layers[route.route_id]);
+    routes_layers_cluster.removeLayer(layers_cluster[route.route_id]);
+    layers[route.route_id] = L.featureGroup();
+    layers_cluster[route.route_id] = new L.MarkerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 1,
+      spiderfyDistanceMultiplier: 0.5,
+      iconCreateFunction: function(cluster) {
+        var markers = cluster.getAllChildMarkers();
+        var n = [], i;
+        for (i = 0; i < markers.length; i++) {
+          if (markers[i].number) {
+            if (n.length < 2) {
+              n.push(markers[i].number);
+            } else {
+              n = [n[0], "…"];
+              break;
             }
           }
-          return new L.NumberedDivIcon({
-            number: n.join(","),
-            iconUrl: '/images/point_large-' + color.substr(1) + '.svg',
-            iconSize: new L.Point(24, 24),
-            iconAnchor: new L.Point(12, 12),
-            popupAnchor: new L.Point(0, -12),
-            className: "large"
-          });
         }
-      });
+        return new L.NumberedDivIcon({
+          number: n.join(","),
+          iconUrl: '/images/point_large-' + color.substr(1) + '.svg',
+          iconSize: new L.Point(24, 24),
+          iconAnchor: new L.Point(12, 12),
+          popupAnchor: new L.Point(0, -12),
+          className: "large"
+        });
+      }
+    });
 
-      $.each(route.stops, function(index, stop) {
-        if (stop.trace) {
-          var polyline = new L.Polyline(L.PolylineUtil.decode(stop.trace, 6));
-          L.polyline(polyline.getLatLngs(), {
-            color: color
-          }).addTo(layers[route.route_id]);
-          L.polyline(polyline.getLatLngs(), {
-            offset: 3,
-            color: color
-          }).addTo(layers_cluster[route.route_id]);
-        }
-        if (stop.destination && $.isNumeric(stop.lat) && $.isNumeric(stop.lng)) {
-          stop.i18n = mustache_i18n;
-          stop.color = stop.destination.color || color;
-          stop.vehicle_name = vehicle_name;
-          stop.route_id = route.route_id;
-          stop.routes = data.routes;
-          stop.planning_id = data.planning_id;
-          var m = L.marker(new L.LatLng(stop.lat, stop.lng), {
-            icon: new L.NumberedDivIcon({
-              number: stop.number,
-              iconUrl: '/images/' + (stop.destination.icon || 'point') + '-' + stop.color.substr(1) + '.svg',
-              iconSize: new L.Point(12, 12),
-              iconAnchor: new L.Point(6, 6),
-              popupAnchor: new L.Point(0, -6),
-              className: "small"
-            })
-          }).addTo(layers[route.route_id]).addTo(layers_cluster[route.route_id]).bindPopup(SMT['stops/show']({stop: stop}), {
-            minWidth: 200,
-            autoPan: false
-          });
-          m.number = stop.number;
-          m.on('mouseover', function(e) {
-            m.openPopup();
-          }).on('mouseout', function(e) {
-            if (!m.click) {
-              m.closePopup();
-            }
-          }).off('click').on('click', function(e) {
-            if (m.click) {
-              m.closePopup();
-            } else {
-              m.click = true;
-              m.openPopup();
-              enlighten_stop(stop.stop_id);
-            }
-          }).on('popupopen', function(e) {
-            $('.phone_number', e.popup._container).click(function(e) {
-              phone_number_call(e.currentTarget.innerHTML, url_click2call, e.target);
-            });
-          }).on('popupclose', function(e) {
-            m.click = false;
-          });
-          markers[stop.stop_id] = m;
-        }
-      });
-      if (route.store_stop && route.store_stop.stop_trace) {
-        var polyline = new L.Polyline(L.PolylineUtil.decode(route.store_stop.stop_trace, 6));
-        L.polyline(polyline.getLatLngs(), {
+    $.each(route.stops, function(index, stop) {
+      if (stop.trace) {
+        (new routeStepTrace(L.PolylineUtil.decode(stop.trace, 6), {
           color: color
-        }).addTo(layers[route.route_id]).addTo(layers_cluster[route.route_id]);
+        })).addDriveInfos(stop.drive_time, stop.distance).addTo(layers[route.route_id]);
+        (new routeStepTrace(L.PolylineUtil.decode(stop.trace, 6), {
+          offset: 3,
+          color: color
+        })).addDriveInfos(stop.drive_time, stop.distance).addTo(layers_cluster[route.route_id]);
       }
+      if (stop.destination && $.isNumeric(stop.lat) && $.isNumeric(stop.lng)) {
+        stop.i18n = mustache_i18n;
+        stop.color = color;
+        stop.vehicle_name = vehicle_name;
+        stop.route_id = route.route_id;
+        stop.routes = data.routes;
+        stop.planning_id = data.planning_id;
+        var m = L.marker(new L.LatLng(stop.lat, stop.lng), {
+          icon: new L.NumberedDivIcon({
+            number: stop.number,
+            iconUrl: '/images/' + (stop.destination.icon || 'point') + '-' + (stop.destination.color || color).substr(1) + '.svg',
+            iconSize: new L.Point(12, 12),
+            iconAnchor: new L.Point(6, 6),
+            popupAnchor: new L.Point(0, -6),
+            className: "small"
+          })
+        }).addTo(layers[route.route_id]).addTo(layers_cluster[route.route_id]).bindPopup(SMT['stops/show']({stop: stop}), {
+          minWidth: 200,
+          autoPan: false
+        });
+        m.number = stop.number;
+        m.on('mouseover', function(e) {
+          m.openPopup();
+        }).on('mouseout', function(e) {
+          if (!m.click) {
+            m.closePopup();
+          }
+        }).off('click').on('click', function(e) {
+          if (m.click) {
+            m.closePopup();
+          } else {
+            m.click = true;
+            m.openPopup();
+            enlighten_stop(stop.stop_id);
+          }
+        }).on('popupopen', function(e) {
+          $('.phone_number', e.popup._container).click(function(e) {
+            phone_number_call(e.currentTarget.innerHTML, url_click2call, e.target);
+          });
+        }).on('popupclose', function(e) {
+          m.click = false;
+        });
+        markers[stop.stop_id] = m;
+      }
+    });
+    if (route.store_stop && route.store_stop.stop_trace) {
+      (new routeStepTrace(L.PolylineUtil.decode(route.store_stop.stop_trace, 6), {
+        color: color
+      })).addDriveInfos(route.store_stop.stop_drive_time, route.store_stop.stop_distance).addTo(layers[route.route_id]);
+      (new routeStepTrace(L.PolylineUtil.decode(route.store_stop.stop_trace, 6), {
+        offset: 3,
+        color: color
+      })).addDriveInfos(route.store_stop.stop_drive_time, route.store_stop.stop_distance).addTo(layers_cluster[route.route_id]);
+    }
 
-      if (!route.hidden) {
-        routes_layers_cluster.addLayer(layers_cluster[route.route_id]);
-        routes_layers.addLayer(layers[route.route_id]);
-      }
+    if (!route.hidden) {
+      routes_layers_cluster.addLayer(layers_cluster[route.route_id]);
+      routes_layers.addLayer(layers[route.route_id]);
+    }
   }
 
   var display_planning = function(data) {
     if ($("#dialog-optimizer").size() == 0) {
       return; // Avoid render and loop with turbolink when page is over
     }
-    if (!progress_dialog(data.optimizer, $("#dialog-optimizer"), display_planning, '/plannings/' + planning_id + '.json')) {
+
+    function error_callback() {
+      stickyError(I18n.t('plannings.edit.optimize_failed'));
+    }
+
+    function success_callback() {
+      notice(I18n.t('plannings.edit.optimize_complete'));
+    }
+
+    if (!progress_dialog(data.optimizer, $("#dialog-optimizer"), '/plannings/' + planning_id + '.json', display_planning, error_callback, success_callback)) {
       return;
     }
 
@@ -368,46 +377,6 @@ var plannings_edit = function(params) {
 
     $("#planning").html(SMT['plannings/edit'](data));
 
-
-    var stores_marker = L.featureGroup();
-    stores = {};
-    $.each(data.stores, function(i, store) {
-      store.store = true;
-      store.planning_id = data.planning_id;
-      if ($.isNumeric(store.lat) && $.isNumeric(store.lng)) {
-        var m = L.marker(new L.LatLng(store.lat, store.lng), {
-          icon: L.icon({
-            iconUrl: '/images/marker-home' + (store.color ? ('-' + store.color.substr(1)) : '') + '.svg',
-            iconSize: new L.Point(32, 32),
-            iconAnchor: new L.Point(16, 16),
-            popupAnchor: new L.Point(0, -12)
-          })
-        }).addTo(stores_marker).bindPopup(SMT['stops/show']({stop: store}), {
-          minWidth: 200,
-          autoPan: false
-        });
-        m.on('mouseover', function(e) {
-          m.openPopup();
-        }).on('mouseout', function(e) {
-          if (!m.click) {
-            m.closePopup();
-          }
-        }).off('click').on('click', function(e) {
-          if (m.click) {
-            m.closePopup();
-          } else {
-            m.click = true;
-            m.openPopup();
-          }
-        }).on('popupclose', function(e) {
-          m.click = false;
-        });
-        stores[store.id] = m;
-      }
-    });
-    stores_marker.addTo(map);
-
-
     var templateSelectionColor = function(state) {
       if(state.id){
         return $("<span class='color_small' style='background:" + state.id + "'></span>");
@@ -424,13 +393,16 @@ var plannings_edit = function(params) {
     }
 
     var formatNoMatches = I18n.t('web.select2.empty_result');
-    $(".color_select").select2({
-      minimumResultsForSearch: -1,
-      templateSelection: templateSelectionColor,
-      templateResult: templateResultColor,
-      formatNoMatches: function() {
-        return formatNoMatches;
-      }
+    fake_select2($(".color_select"), function(select) {
+      select.select2({
+        minimumResultsForSearch: -1,
+        templateSelection: templateSelectionColor,
+        templateResult: templateResultColor,
+        formatNoMatches: function() {
+          return formatNoMatches;
+        }
+      }).select2("open");
+      select.next('.select2-container--bootstrap').addClass('input-sm');
     });
 
     var templateSelectionVehicles = function(state) {
@@ -453,14 +425,17 @@ var plannings_edit = function(params) {
     }
 
     var formatNoMatches = I18n.t('web.select2.empty_result');
-    $(".vehicle_select").select2({
-      minimumResultsForSearch: -1,
-      data: vehicles_array,
-      templateSelection: templateSelectionVehicles,
-      templateResult: templateResultVehicles,
-      formatNoMatches: function() {
-        return formatNoMatches;
-      }
+    fake_select2($(".vehicle_select"), function(select) {
+      select.select2({
+        minimumResultsForSearch: -1,
+        data: vehicles_array,
+        templateSelection: templateSelectionVehicles,
+        templateResult: templateResultVehicles,
+        formatNoMatches: function() {
+          return formatNoMatches;
+        }
+      }).select2("open");
+      select.next('.select2-container--bootstrap').addClass('input-sm');
     });
 
     $.each(data.routes, function(i, route) {
@@ -471,24 +446,51 @@ var plannings_edit = function(params) {
       enlighten_stop(data.stop_id_enlighten);
     }
 
-    $(".export_tomtom a").click(function() {
-      var url = this.href;
+    // KMZ: Export Route via E-Mail
+    $('.kmz_email a').click(function(e) {
+      e.preventDefault();
       $.ajax({
-        type: "get",
-        url: url,
-        beforeSend: function() {
-          $("#dialog-tomtom").dialog("open");
+        url: $(e.target).attr('href'),
+        type: 'GET',
+        beforeSend: function(jqXHR, settings) {
+          beforeSendWaiting();
         },
-        success: function(data) {
-          bootstrap_alert_success(I18n.t('plannings.edit.export.tomtom_success'));
+        complete: function(jqXHR, textStatus) {
+          completeWaiting();
         },
-        complete: function() {
-          $("#dialog-tomtom").dialog("close");
+        success: function(data, textStatus, jqXHR) {
+          notice(I18n.t('plannings.edit.export.kmz_email.success'));
         },
-        error: ajaxError
+        error: function(jqXHR, textStatus, errorThrown) {
+          stickyError(I18n.t('plannings.edit.export.kmz_email.fail'));
+        }
       });
-      $(this).closest(".dropdown-menu").prev().dropdown("toggle");
-      return false;
+    });
+
+    // Send to TomTom, Clear TomTom
+    $.each(['tomtom_send', 'tomtom_clear'], function(i, name) {
+      $('.' + name + ' a').click(function(e) {
+        e.preventDefault();
+        $.ajax({
+          url: $(e.target).attr('href'),
+          type: 'GET',
+          beforeSend: function(jqXHR, settings) {
+            $('#dialog-tomtom').dialog('open');
+          },
+          success: function(data, textStatus, jqXHR) {
+            notice(I18n.t('plannings.edit.export.' + name + '.success'));
+          },
+          complete: function(jqXHR, textStatus) {
+            $('#dialog-tomtom').dialog('close');
+          },
+          error: function(jqXHR, textStatus, errorThrown) {
+            stickyError(I18n.t('plannings.edit.export.' + name + '.fail'));
+          }
+        });
+        // Reset Dropdown
+        $(e.target).closest('.dropdown-menu').dropdown('toggle');
+        return false;
+      });
     });
 
     $(".export_masternaut a").click(function() {
@@ -500,7 +502,7 @@ var plannings_edit = function(params) {
           $("#dialog-masternaut").dialog("open");
         },
         success: function(data) {
-          bootstrap_alert_success(I18n.t('plannings.edit.export.masternaut_success'));
+          notice(I18n.t('plannings.edit.export.masternaut_success'));
         },
         complete: function() {
           $("#dialog-masternaut").dialog("close");
@@ -520,7 +522,7 @@ var plannings_edit = function(params) {
           $("#dialog-alyacom").dialog("open");
         },
         success: function(data) {
-          bootstrap_alert_success(I18n.t('plannings.edit.export.alyacom_success'));
+          notice(I18n.t('plannings.edit.export.alyacom_success'));
         },
         complete: function() {
           $("#dialog-alyacom").dialog("close");
@@ -683,6 +685,10 @@ var plannings_edit = function(params) {
         vehicle_select.trigger('change');
         var id = $(this).closest("[data-route_id]").attr("data-route_id");
         var color = this.value;
+        if (color)
+          $('.color_small', $('.vehicle_select', $(this).parent()).next()).hide();
+        else
+          $('.color_small', $('.vehicle_select', $(this).parent()).next()).show();
         $.ajax({
           type: "put",
           data: JSON.stringify({
@@ -692,12 +698,17 @@ var plannings_edit = function(params) {
           url: '/api/0.1/plannings/' + planning_id + '/routes/' + id + '.json',
           error: ajaxError
         });
+        routes_array.forEach(function(route) {
+          if (route.route_id == id)
+            route.color = color;
+        });
         var route = data.routes.reduce(function(found, el) {
           return found || (el.route_id == id && el);
         }, null);
         route.color = color;
         display_route(data, route);
         $('li[data-route_id=' + id + '] li[data-stop_id] .number:not(.color_force)').css('background', color || route.vehicle.color);
+        $('span[data-route_id=' + id + '] i.vehicle-icon').css('color', color || route.vehicle.color);
       });
 
     $(".lock").click(function(event, ui) {
@@ -770,12 +781,105 @@ var plannings_edit = function(params) {
 
   var display_planning_first_time = function(data) {
     display_planning(data);
+
+    var stores_marker = L.featureGroup();
+    stores = {};
+    $.each(data.stores, function(i, store) {
+      store.store = true;
+      store.planning_id = data.planning_id;
+      if ($.isNumeric(store.lat) && $.isNumeric(store.lng)) {
+        var m = L.marker(new L.LatLng(store.lat, store.lng), {
+          icon: L.divIcon({
+            html: '<i class="fa ' + (store.icon || 'fa-home') + ' ' + map.iconSize[store.icon_size || 'large'].name + ' store-icon" style="color: ' + (store.color || 'black') + ';"></i>',
+            iconSize: new L.Point(map.iconSize[store.icon_size || 'large'].size, map.iconSize[store.icon_size || 'large'].size),
+            iconAnchor: new L.Point(map.iconSize[store.icon_size || 'large'].size / 2, map.iconSize[store.icon_size || 'large'].size / 2),
+            popupAnchor: new L.Point(0, -Math.floor(map.iconSize[store.icon_size || 'large'].size / 2.5)),
+            className: 'store-icon-container'
+          })
+        }).addTo(stores_marker).bindPopup(SMT['stops/show']({stop: store}), {
+          minWidth: 200,
+          autoPan: false
+        });
+        m.on('mouseover', function(e) {
+          m.openPopup();
+        }).on('mouseout', function(e) {
+          if (!m.click) {
+            m.closePopup();
+          }
+        }).off('click').on('click', function(e) {
+          if (m.click) {
+            m.closePopup();
+          } else {
+            m.click = true;
+            m.openPopup();
+          }
+        }).on('popupclose', function(e) {
+          m.click = false;
+        });
+        stores[store.id] = m;
+      }
+    });
+    stores_marker.addTo(map);
+
     if (fitBounds) {
       var bounds = routes_layers.getBounds();
       if (bounds && bounds.isValid()) {
         map.invalidateSize();
         map.fitBounds(bounds.pad(1.1), {animate: false});
       }
+    }
+
+    var displayVehicles = function(data) {
+      vehicleLayer.clearLayers();
+      data.forEach(function(pos) {
+        if ($.isNumeric(pos.lat) && $.isNumeric(pos.lng)) {
+          var route = routes_array.filter(function(route) {
+            return route.vehicle_usage_id == vehicles_usages_map[pos.vehicle_id].vehicle_usage_id
+          })[0];
+          var isMoving = pos.speed && (Date.parse(pos.time) > Date.now() - 600 * 1000);
+          var iconContent = isMoving ?
+            '<span class="fa-stack" data-route_id="' + route.route_id + '"><i class="fa fa-truck fa-stack-2x vehicle-icon pulse" style="color: ' + (route.color || vehicles_usages_map[pos.vehicle_id].color) + '"></i><i class="fa fa-location-arrow fa-stack-1x vehicle-direction" style="transform: rotate(' + (parseInt(pos.direction) - 45) + 'deg);"></span>' :
+            '<i class="fa fa-truck fa-lg vehicle-icon" style="color: ' + (route.color || vehicles_usages_map[pos.vehicle_id].color) + '"></i>';
+          var m = L.marker(new L.LatLng(pos.lat, pos.lng), {
+            icon: new L.divIcon({
+              html: iconContent,
+              iconSize: new L.Point(24, 24),
+              iconAnchor: new L.Point(12, 12),
+              popupAnchor: new L.Point(0, -12),
+              className: 'vehicle-position'
+            }),
+            title: vehicles_usages_map[pos.vehicle_id].name + ' - ' + pos.device_name + ' - ' + I18n.t('plannings.edit.vehicle_speed') + ' ' + (pos.speed || 0) + 'km/h - ' + I18n.t('plannings.edit.vehicle_last_position_time') + ' ' + (new Date(pos.time)).toLocaleString(),
+          }).addTo(vehicleLayer);
+        }
+      });
+    }
+
+    var queryVehicles = function() {
+      $.ajax({
+        type: 'get',
+        url: '/api/0.1/vehicles/current_position.json',
+        data: {ids: vehicleIdsPosition.join(',')},
+        beforeSend: beforeSendWaiting,
+        success: displayVehicles,
+        complete: completeAjaxMap,
+        error: function(err) {
+          clearInterval(tid);
+          ajaxError(err);
+        }
+      });
+    };
+
+    var vehicleIdsPosition = vehicles_array.filter(function(vehicle) {
+      return vehicle.available_position
+    }).map(function(vehicle) {
+      return vehicle.id
+    });
+
+    if (vehicleIdsPosition.length) {
+      var vehicleLayer = L.featureGroup();
+      map.addLayer(vehicleLayer);
+      queryVehicles();
+      var tid = setInterval(queryVehicles, 30000);
     }
   }
 
@@ -838,8 +942,6 @@ var plannings_edit = function(params) {
       });
     }
   });
-
-  hideAlert('.alert-success', timeAlert);
 }
 
 var plannings_show = function(params){

@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2013-2015
+# Copyright © Mapotempo, 2013-2016
 #
 # This file is part of Mapotempo.
 #
@@ -35,15 +35,25 @@ class ImporterStores < ImporterBase
       lat: I18n.t('stores.import_file.lat'),
       lng: I18n.t('stores.import_file.lng'),
       color: I18n.t('stores.import_file.color'),
+      icon: I18n.t('stores.import_file.icon'),
+      icon_size: I18n.t('stores.import_file.icon_size'),
       geocoding_accuracy: I18n.t('stores.import_file.geocoding_accuracy'),
       geocoding_level: I18n.t('stores.import_file.geocoding_level')
     }
   end
 
-  def before_import(replace, name, synchronous)
+  def json_to_rows(json)
+    json
+  end
+
+  def rows_to_json(rows)
+    rows
+  end
+
+  def before_import(name, options)
     @need_geocode = false
 
-    if replace
+    if options[:replace]
       # vehicle is always linked to a store
       @tmp_store = @customer.stores.build(
         name: I18n.t('stores.default.name'),
@@ -64,15 +74,15 @@ class ImporterStores < ImporterBase
     end
   end
 
-  def import_row(replace, name, row, line)
+  def import_row(name, row, line, options)
     if row[:name].nil? || (row[:city].nil? && row[:postalcode].nil? && (row[:lat].nil? || row[:lng].nil?))
-      raise I18n.t('stores.import_file.missing_data', line: line)
+      raise ImportInvalidRow.new(I18n.t('stores.import_file.missing_data', line: line))
     end
 
-    if !row[:lat].nil?
+    if !row[:lat].nil? && (row[:lat].is_a? String)
       row[:lat] = Float(row[:lat].tr(',', '.'))
     end
-    if !row[:lng].nil?
+    if !row[:lng].nil? && (row[:lng].is_a? String)
       row[:lng] = Float(row[:lng].tr(',', '.'))
     end
 
@@ -93,8 +103,8 @@ class ImporterStores < ImporterBase
     store # For subclasses
   end
 
-  def after_import(replace, name, synchronous)
-    if replace
+  def after_import(name, options)
+    if options[:replace]
       if !@customer.stores[1].nil?
         @customer.vehicle_usage_sets.each{ |vehicle_usage_set|
           vehicle_usage_set.store_start = @customer.stores[1]
@@ -108,8 +118,8 @@ class ImporterStores < ImporterBase
     @customer.save!
   end
 
-  def finalize_import(replace, name, synchronous)
-    if @need_geocode && (!synchronous || Mapotempo::Application.config.delayed_job_use)
+  def finalize_import(name, options)
+    if @need_geocode && !synchronous && Mapotempo::Application.config.delayed_job_use
       @customer.job_store_geocoding = Delayed::Job.enqueue(GeocoderStoresJob.new(@customer.id))
     end
 

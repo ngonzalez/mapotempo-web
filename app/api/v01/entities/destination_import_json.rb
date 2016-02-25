@@ -20,10 +20,6 @@ class V01::Entities::DestinationImportJson < V01::Entities::Destination
     'V01_DestinationImportJson'
   end
 
-  unexpose(:tag_ids)
-  expose(:tags, documentation: { type: String, is_array: true, desc: 'If tags don\'t exist they will be created' })
-  unexpose(:geocoding_accuracy)
-  unexpose(:take_over_default)
-  expose(:route, documentation: { type: String, desc: 'Route reference. If route reference is specified, a new planning will be created with a route using the specified reference' })
-  expose(:active, documentation: { type: String, desc: 'In order to specify is stop is active in planning or not (\'0\' if inactive)' })
+  unexpose(:visits)
+  expose(:visits, using: V01::Entities::VisitImportJson, documentation: { type: V01::Entities::VisitImportJson, is_array: true, param_type: 'form' })
 end

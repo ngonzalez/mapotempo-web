@@ -49,7 +49,7 @@
 
   <tbody>
     <% @customers.each do |customer| %>
-      <tr>
+      <tr<% if customer.end_subscription && customer.end_subscription < Time.now %> class="disabled"<% end %>>
         <td><%= check_box_tag("customers[#{customer.id}]") %></td>
         <td><%= customer.name %></td>
         <td><%= customer.profile.name %></td>
@@ -60,7 +60,14 @@
           <%= render 'job', customer: customer, job: customer.job_destination_geocoding %>
           <%= render 'job', customer: customer, job: customer.job_store_geocoding %>
         </td>
-        <td><%= customer.end_subscription ? l(customer.end_subscription) : nil %></td>
+        <td>
+          <% if customer.end_subscription %>
+            <%= l(customer.end_subscription) %>
+            <% if customer.end_subscription < Time.now + 86400 * 30 && customer.end_subscription > Time.now %>
+              <i class="fa fa-warning" style="color: orange;"></i>
+            <% end %>
+          <% end %>
+        </td>
         <td class="text-right">
           <%= link_to edit_customer_path(customer), :class => "btn btn-primary btn-sm" do %><i class="fa fa-edit fa-fw"></i> <%= t 'all.verb.edit' %><% end %>
           <%= link_to customer, :class => "btn btn-danger btn-sm", method: :delete, data: { confirm: t('all.verb.destroy_confirm') } do %><i class="fa fa-trash-o fa-fw"></i> <%= t 'all.verb.destroy' %><% end %>
@@ -73,8 +80,17 @@
 <%= button_tag type: :submit, class: "btn btn-danger btn-sm", data: { confirm: t('all.verb.destroy_confirm') } do %><i class="fa fa-trash-o fa-fw"></i> <%= t('all.verb.destroy_selection') %><% end %>
 <% end %>
 <%
+layers = Layer.all.sort_by(&:id).uniq.collect{ |layer|
+  {
+    id: layer.id,
+    name: layer.name,
+    url: request.ssl? ? layer.urlssl : layer.url,
+    attribution: layer.map_attribution,
+    default: layer == current_user.layer,
+    overlay: layer.overlay
+  }
+}
 controller.js(
-  map_layer_url: request.ssl? ? current_user.layer.urlssl : current_user.layer.url,
-  map_attribution: current_user.layer.map_attribution
+  map_layers: Hash[layers.map{ |l| l[:name] }.zip(layers)]
 )
 %>

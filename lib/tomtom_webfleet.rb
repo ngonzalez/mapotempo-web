@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2014-2015
+# Copyright © Mapotempo, 2014-2016
 #
 # This file is part of Mapotempo.
 #
@@ -16,6 +16,8 @@
 # <http://www.gnu.org/licenses/agpl.html>
 #
 require 'savon'
+
+class TomTomError < StandardError ; end
 
 class TomtomWebfleet
   TIME_2000 = Time.new(2000, 1, 1, 0, 0, 0, '+00:00').to_i
@@ -40,10 +42,11 @@ class TomtomWebfleet
     nil: [nil, 'trailer', 'truck_trailer', 'crane', 'caddy', 'car_station_wagon', 'containership', 'link'],
   }
 
-  attr_accessor :client_objects, :client_orders, :api_key
+  attr_accessor :client_objects, :client_orders, :api_key, :cache_object
 
-  def initialize(url, api_key)
+  def initialize(url, api_key, cache_object)
     @api_key = api_key
+    @cache_object = cache_object
 
     @client_objects = Savon.client(wsdl: url + '/objectsAndPeopleReportingService?wsdl', multipart: true, soap_version: 2, open_timeout: 60, read_timeout: 60) do
       #log true
@@ -65,14 +68,26 @@ class TomtomWebfleet
   end
 
   def showObjectReport(account, username, password)
-    objects = get(@client_objects, :show_object_report, account, username, password, {})
-    objects = [objects] if objects.is_a?(Hash)
-    objects.select{ |object| !object[:deleted] }.collect{ |object|
-      {
-        objectUid: object[:@object_uid],
-        objectName: object[:object_name],
+    key = ['tomtom', account, username, password, @client_object]
+    result = @cache_object.read(key)
+    if !result
+      objects = get(@client_objects, :show_object_report, account, username, password, {})
+      objects = [objects] if objects.is_a?(Hash)
+      result = objects.select{ |object| !object[:deleted] }.collect{ |object|
+        {
+          objectUid: object[:@object_uid],
+          objectName: object[:object_name],
+          lat: (object[:position] && object[:position][:latitude] && (object[:position][:latitude].to_i / 1e6)),
+          lng: (object[:position] && object[:position][:longitude] && (object[:position][:longitude].to_i / 1e6)),
+          speed: object[:speed],
+          direction: object[:course],
+          # quality: object[:quality],
+          time: object[:pos_time],
+        }
       }
-    }
+      @cache_object.write(key, result)
+    end
+    result
   end
 
   def showVehicleReport(account, username, password)
@@ -100,8 +115,8 @@ class TomtomWebfleet
         postalcode: address[:location][:postcode],
         city: address[:location][:city],
         country: address[:location][:country],
-        lat: address[:location][:latitude],
-        lng: address[:location][:longitude],
+        lat: (address[:location][:geo_position] && address[:location][:geo_position][:latitude] && address[:location][:geo_position][:latitude].to_i / 1e6),
+        lng: (address[:location][:geo_position] && address[:location][:geo_position][:longitude] && address[:location][:geo_position][:longitude].to_i / 1e6),
         detail: address[:location][:description],
 #        state: address[:location][:addrRegion],
         phone_number: address[:contact][:phoneBusiness] || address[:contact][:phoneMobile] || address[:contact][:phonePersonal],
@@ -181,20 +196,37 @@ class TomtomWebfleet
     }
     message[:gParm] = {}
     response = client.call(operation, message: message)
-
     ret = response.body.first[1][:return]
-    if ret[:status_code] != '0'
-      Rails.logger.info response.body.first[1][:return]
-      raise "TomTom WEBFLEET operation #{operation} return error: #{response.body.first[1][:return][:status_message]}"
+    status_code = ret[:status_code].to_i
+
+    if status_code != 0
+      Rails.logger.info "%s: %s" % [ operation, response.body ]
+      raise TomTomError.new("TomTom: %s" % [ parse_error_msg(status_code) || ret[:status_message] ])
     else
-      ret[:results][:result_item]
+      ret[:results][:result_item] if ret.key?(:results)
     end
+
   rescue Savon::SOAPFault => error
     Rails.logger.info error
     fault_code = error.to_hash[:fault][:faultcode]
-    raise fault_code
+    raise "TomTomWebFleet: #{fault_code}"
   rescue Savon::HTTPError => error
     Rails.logger.info error.http.code
-    raise
+    raise error
   end
+
+  def parse_error_msg status_code
+    # https://uk.support.business.tomtom.com/ci/fattach/get/1331065/1450429305/redirect/1/session/L2F2LzEvdGltZS8xNDUyNjk2OTAzL3NpZC9yVVVpQ3FHbQ==/filename/WEBFLEET.connect-en-1.26.0.pdf
+    case status_code
+      when 45
+        I18n.t "errors.tomtom.access_denied"
+      when 1101
+        I18n.t "errors.tomtom.invalid_account"
+      when 8014
+        I18n.t "errors.tomtom.external_requests_not_allowed"
+      when 9126
+        I18n.t "errors.tomtom.hostname_not_allowed"
+    end
+  end
+
 end

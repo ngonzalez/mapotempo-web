@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2013-2015
+# Copyright © Mapotempo, 2013-2016
 #
 # This file is part of Mapotempo.
 #
@@ -26,6 +26,8 @@ class RoutesController < ApplicationController
   load_and_authorize_resource
   before_action :set_route, only: [:update]
 
+  include PlanningExport
+
   def show
     @export_stores = ValueToBoolean.value_to_boolean(params['stores'], true)
     respond_to do |format|
@@ -36,23 +38,23 @@ class RoutesController < ApplicationController
       end
       format.kml do
         response.headers['Content-Disposition'] = 'attachment; filename="' + filename + '.kml"'
+        render "routes/show", locals: { route: @route }
       end
       format.kmz do
-        stringio = Zip::OutputStream.write_buffer do |zio|
-          zio.put_next_entry(filename + '.kml')
-          zio.write render_to_string(formats: :kml)
-          store_img_path = 'marker-home.png'
-          zio.put_next_entry(store_img_path)
-          zio.print IO.read('public/' + store_img_path)
-          (Vehicle.colors_table + ['#707070']).each { |color|
-            img_path = 'point-' + color[1..-1] + '.png'
-            zio.put_next_entry(img_path)
-            zio.print IO.read('public/' + img_path)
-          }
+        if params[:email]
+          vehicle = @route.vehicle_usage.vehicle
+          content = kmz_string_io(route: @route).string
+          if Mapotempo::Application.config.delayed_job_use
+            RouteMailer.delay.send_kmz_route current_user, vehicle, @route, filename + '.kmz', content
+          else
+            RouteMailer.send_kmz_route(current_user, vehicle, @route, filename + '.kmz', content).deliver_now
+          end
+          head :no_content
+        else
+          send_data kmz_string_io(route: @route).string,
+            type: 'application/vnd.google-earth.kmz',
+            filename: filename + '.kmz'
         end
-        send_data stringio.string,
-          type: 'application/vnd.google-earth.kmz',
-          filename: filename + '.kmz'
       end
       format.excel do
         data = render_to_string.gsub('\n', '\r\n')
@@ -69,11 +71,11 @@ class RoutesController < ApplicationController
             Tomtom.export_route_as_waypoints(@route)
           elsif params[:type] == 'orders'
             Tomtom.export_route_as_orders(@route)
-          else
+          elsif params[:type] == 'empty'
             Tomtom.clear(@route)
           end
           head :no_content
-        rescue => e
+        rescue TomTomError => e
           render json: e.message, status: :unprocessable_entity
         end
       end
@@ -81,7 +83,7 @@ class RoutesController < ApplicationController
         begin
           Masternaut.export_route(@route)
           head :no_content
-        rescue => e
+        rescue MasternautError => e
           render json: e.message, status: :unprocessable_entity
         end
       end
@@ -89,7 +91,7 @@ class RoutesController < ApplicationController
         begin
           Alyacom.export_route(@route)
           head :no_content
-        rescue => e
+        rescue AlyacomError => e
           render json: e.message, status: :unprocessable_entity
         end
       end
@@ -119,9 +121,6 @@ class RoutesController < ApplicationController
   end
 
   def filename
-    (@route.planning.name + '_' + (@route.ref || @route.vehicle_usage.vehicle.name) +
-      (@route.planning.customer.enable_orders && @route.planning.order_array ? '_' + @route.planning.order_array.name : '') +
-      (@route.planning.date ? '_' + l(@route.planning.date) : '')
-    ).tr('/', '-').delete('"')
+    export_filename @route.planning, @route.ref || @route.vehicle_usage.vehicle.name
   end
 end

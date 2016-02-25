@@ -3,6 +3,14 @@ class ImporterTest < ActionController::TestCase
     @customer = customers(:customer_one)
   end
 
+  def tempfile(file, name)
+    file = ActionDispatch::Http::UploadedFile.new({
+      tempfile: File.new(Rails.root.join(file)),
+    })
+    file.original_filename = name
+    file
+  end
+
   test 'should import store' do
     assert_difference('Store.count') do
       assert ImportCsv.new(importer: ImporterStores.new(@customer), replace: false, file: tempfile('test/fixtures/files/import_stores_one.csv', 'text.csv')).import
@@ -54,6 +62,6 @@ class ImporterTest < ActionController::TestCase
       assert ImportCsv.new(importer: ImporterStores.new(@customer), replace: false, file: tempfile('test/fixtures/files/import_stores_update.csv', 'text.csv')).import
     end
     assert_equal 'unaffected_one_update', Store.find_by(ref:'a').name
-    assert_equal 'unaffected_two_update', Store.find_by(ref:'d').name
+    assert_equal 'unaffected_two_update', Store.find_by(ref:'unknown').name
   end
 end

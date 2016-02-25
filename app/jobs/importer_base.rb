@@ -17,17 +17,26 @@
 #
 require 'csv'
 
+class ImportBaseError < StandardError ; end
+class ImportInvalidRow < ImportBaseError ; end
+
 class ImporterBase
+
+  attr_accessor :synchronous
 
   def initialize(customer)
     @customer = customer
+    @warnings = []
   end
 
-  def import(data, replace, name, synchronous, ignore_error)
-    Store.transaction do
-      before_import(replace, name, synchronous)
+  def import(data, name, synchronous, options)
+    self.synchronous = synchronous
+    dests = false
 
-      data.each_with_index{ |row, line|
+    Customer.transaction do
+      before_import(name, options)
+
+      dests = data.each_with_index.collect{ |row, line|
         row = yield(row)
 
         if row.size == 0
@@ -35,18 +44,33 @@ class ImporterBase
         end
 
         begin
-          dest = import_row(replace, name, row, line)
-          if !synchronous || Mapotempo::Application.config.delayed_job_use
+          dest = import_row(name, row, line + 1, options)
+          if dest.nil?
+            next
+          end
+
+          if !synchronous && Mapotempo::Application.config.delayed_job_use
             dest.delay_geocode
           end
-        rescue
-          if !ignore_error
+          dest
+        rescue ImportInvalidRow => e
+          if options[:ignore_errors]
+            @warnings << e if !@warnings.include?(e)
+          else
             raise
           end
         end
       }
-      after_import(replace, name, synchronous)
+
+      after_import(name, options)
+
+      finalize_import(name, options)
     end
-    finalize_import(replace, name, synchronous)
+
+    dests
+  end
+
+  def warnings
+    @warnings
   end
 end

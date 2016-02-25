@@ -4,7 +4,7 @@ class VehicleTest < ActiveSupport::TestCase
   set_fixture_class delayed_jobs: Delayed::Backend::ActiveRecord::Job
 
   def around
-    Osrm.stub_any_instance(:compute, [1, 1, 'trace']) do
+    Routers::Osrm.stub_any_instance(:compute, [1, 1, 'trace']) do
       yield
     end
   end
@@ -30,5 +30,15 @@ class VehicleTest < ActiveSupport::TestCase
     assert_not o.vehicle_usages[0].routes[-1].out_of_date
     o.save!
     assert o.vehicle_usages[0].routes[-1].out_of_date
+  end
+
+  test 'should validate email' do
+    v = vehicles(:vehicle_one)
+    assert v.contact_email.nil?
+    assert v.valid?
+    assert v.update! contact_email: ""
+    assert v.valid?
+    assert v.update! contact_email: "test@example.com"
+    assert v.valid?
   end
 end

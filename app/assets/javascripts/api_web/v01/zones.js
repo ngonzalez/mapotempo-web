@@ -17,30 +17,12 @@
 //
 var api_web_v01_zones_index = function(params) {
   var progressBar = Turbolinks.enableProgressBar();
-  progressBar.advanceTo(25);
+  progressBar && progressBar.advanceTo(25);
 
-  var zoning_id = params.zoning_id,
-    zone_ids = params.zone_ids,
-    map_layer_url = params.map_layer_url,
-    map_lat = params.map_lat,
-    map_lng = params.map_lng,
-    map_attribution = params.map_attribution,
-    vehicles_map = params.vehicles_map,
-    destinations = params.destinations,
-    destination_ids = params.destination_ids,
-    vehicle_usage_set_id = params.vehicle_usage_set_id;
-
-  var map = new L.Map('map', {
-    attributionControl: false
-  }).setView([map_lat, map_lng], 13);
+  var map = mapInitialize(params);
   L.control.attribution({prefix: false}).addTo(map);
   L.control.scale({
     imperial: false
-  }).addTo(map);
-
-  L.tileLayer(map_layer_url, {
-    maxZoom: 18,
-    attribution: map_attribution
   }).addTo(map);
 
   var caption = L.DomUtil.get('zones-caption');
@@ -59,15 +41,15 @@ var api_web_v01_zones_index = function(params) {
     map.addControl(new control_caption());
   }
 
-  var markersLayers = L.featureGroup(),
-    stores_marker = L.featureGroup(),
-    featureGroup = L.featureGroup();
+  map.markersLayers = L.featureGroup();
+  map.storesLayers = L.featureGroup();
+  var featureGroup = L.featureGroup();
 
-  map.addLayer(featureGroup).addLayer(stores_marker).addLayer(markersLayers);
+  map.addLayer(featureGroup).addLayer(map.storesLayers).addLayer(map.markersLayers);
 
   var set_color = function(polygon, vehicle_id) {
     polygon.setStyle({
-      color: (vehicle_id ? vehicles_map[vehicle_id].color : '#707070')
+      color: (vehicle_id ? params.vehicles_map[vehicle_id].color : '#707070')
     });
   }
 
@@ -84,21 +66,22 @@ var api_web_v01_zones_index = function(params) {
   }
 
   var display_zoning = function(data) {
-    api_web_v01_display_destinations_('destinations', map, markersLayers, undefined, data);
+    api_web_v01_display_destinations_('destinations', map, data);
 
-    stores_marker.clearLayers();
+    map.storesLayers.clearLayers();
     $.each(data.stores, function(i, store) {
       store.store = true;
       store.i18n = mustache_i18n;
       if ($.isNumeric(store.lat) && $.isNumeric(store.lng)) {
         var m = L.marker(new L.LatLng(store.lat, store.lng), {
-          icon: L.icon({
-            iconUrl: '/images/marker-home' + (store.color ? ('-' + store.color.substr(1)) : '') + '.svg',
-            iconSize: new L.Point(32, 32),
-            iconAnchor: new L.Point(16, 16),
-            popupAnchor: new L.Point(0, -12)
+          icon: L.divIcon({
+            html: '<i class="fa ' + (store.icon || 'fa-home') + ' ' + map.iconSize[store.icon_size || 'large'].name + ' store-icon" style="color: ' + (store.color || 'black') + ';"></i>',
+            iconSize: new L.Point(map.iconSize[store.icon_size || 'large'].size, map.iconSize[store.icon_size || 'large'].size),
+            iconAnchor: new L.Point(map.iconSize[store.icon_size || 'large'].size / 2, map.iconSize[store.icon_size || 'large'].size / 2),
+            popupAnchor: new L.Point(0, -Math.floor(map.iconSize[store.icon_size || 'large'].size / 2.5)),
+            className: 'store-icon-container'
           })
-        }).addTo(stores_marker).bindPopup(SMT['stops/show']({
+        }).addTo(map.storesLayers).bindPopup(SMT['stops/show']({
           stop: store
         }));
         m.on('mouseover', function(e) {
@@ -123,25 +106,26 @@ var api_web_v01_zones_index = function(params) {
     }
   }
 
-  progressBar.advanceTo(50);
-  var paramsJson = {};
-  if (zone_ids) paramsJson.ids = zone_ids.join(',');
-  if (destinations) paramsJson.destinations = destinations;
-  if (destination_ids) paramsJson.destination_ids = destination_ids.join(',');
-  if (vehicle_usage_set_id) paramsJson.vehicle_usage_set_id = vehicle_usage_set_id;
-  var queryParam = $.param(paramsJson);
-  if (queryParam) queryParam = '?' + queryParam;
+  progressBar && progressBar.advanceTo(50);
+  var ajaxParams = {};
+  if (params.zone_ids) ajaxParams.ids = params.zone_ids.join(',');
+  if (params.destinations) ajaxParams.destinations = params.destinations;
+  if (params.destination_ids && !params.destinations) ajaxParams.destination_ids = params.destination_ids.join(',');
+  if (params.vehicle_usage_set_id) ajaxParams.vehicle_usage_set_id = params.vehicle_usage_set_id;
+  if (params.store_ids) ajaxParams.store_ids = params.store_ids.join(',');
   $.ajax({
-    url: '/api-web/0.1/zonings/' + zoning_id + '/zones.json' + queryParam,
+    url: '/api-web/0.1/zonings/' + params.zoning_id + '/zones.json',
+    method: params.method,
+    data: ajaxParams,
     beforeSend: beforeSendWaiting,
     success: function(data) {
       if (data.zoning && data.zoning.length) {
         display_zoning(data);
       }
       else {
-        bootstrap_alert_danger(I18n.t('api_web.v01.zones.index.none_zones'));
+        stickyError(I18n.t('api_web.v01.zones.index.none_zones'));
       }
-      progressBar.done();
+      progressBar && progressBar.done();
     },
     complete: completeWaiting,
     error: ajaxError

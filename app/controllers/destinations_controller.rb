@@ -120,6 +120,7 @@ class DestinationsController < ApplicationController
     respond_to do |format|
       @import_tomtom = ImportTomtom.new(import_tomtom_params.merge(importer: ImporterDestinations.new(current_user.customer), customer: current_user.customer))
       if current_user.customer.tomtom? && @import_tomtom.valid? && @import_tomtom.import
+        flash[:warning] = @import_tomtom.warnings.join(', ') if @import_tomtom.warnings && @import_tomtom.warnings.length > 0
         format.html { redirect_to action: 'index' }
       else
         @import_csv = ImportCsv.new
@@ -130,7 +131,7 @@ class DestinationsController < ApplicationController
 
   def clear
     Destination.transaction do
-      current_user.customer.destinations.delete_all
+      current_user.customer.delete_all_destinations
     end
     respond_to do |format|
       format.html { redirect_to action: 'index' }
@@ -146,12 +147,12 @@ class DestinationsController < ApplicationController
 
   # Never trust parameters from the scary internet, only allow the white list through.
   def destination_params
-    params.require(:destination).permit(:ref, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :quantity, :take_over, :open, :close, :phone_number, :comment, :geocoding_accuracy, :geocoding_level, tag_ids: [])
+    params.require(:destination).permit(:ref, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :quantity, :take_over, :open, :close, :phone_number, :comment, :geocoding_accuracy, :geocoding_level, tag_ids: [], visits_attributes: [:id, :ref, :quantity, :take_over, :open, :close, :_destroy, tag_ids: []])
   end
 
   # Never trust parameters from the scary internet, only allow the white list through.
   def import_csv_params
-    params.require(:import_csv).permit(:replace, :file)
+    params.require(:import_csv).permit(:replace, :file, :delete_plannings)
   end
 
   # Never trust parameters from the scary internet, only allow the white list through.

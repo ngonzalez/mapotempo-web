@@ -15,7 +15,7 @@ class V01::StoresTest < ActiveSupport::TestCase
 
   def api(part = nil, param = {})
     part = part ? '/' + part.to_s : ''
-    "/api/0.1/stores#{part}.json?api_key=testkey1&" + param.collect{ |k, v| "#{k}=#{v}" }.join('&')
+    "/api/0.1/stores#{part}.json?api_key=testkey1&" + param.collect{ |k, v| "#{k}=" + URI.escape(v.to_s) }.join('&')
   end
 
   test 'should return customer''s stores' do
@@ -48,13 +48,18 @@ class V01::StoresTest < ActiveSupport::TestCase
   test 'should create bulk from csv' do
     assert_difference('Store.count', 1) do
       put api(), replace: false, file: fixture_file_upload('files/import_stores_one.csv', 'text/csv')
-      assert_equal 204, last_response.status, 'Bad response ' + last_response.body
+      assert last_response.ok?, last_response.body
+      json = JSON.parse(last_response.body)
+      assert_equal 1, json.size
+      assert_equal 'fra', json[0]['country']
+      assert_equal 'fa-car', json[0]['icon']
     end
   end
 
   test 'should replace from csv' do
     put api(), replace: true, file: fixture_file_upload('files/import_stores_one.csv', 'text/csv')
-    assert_equal 204, last_response.status, 'Bad response ' + last_response.body
+    assert last_response.ok?, last_response.body
+    assert_equal 1, JSON.parse(last_response.body).size
     assert_equal Store.where("customer_id='#{customers(:customer_one).id}'").count, 1
   end
 
@@ -65,13 +70,21 @@ class V01::StoresTest < ActiveSupport::TestCase
         street: nil,
         postalcode: nil,
         city: 'Tule',
+        country: 'fra',
         lat: 43.5710885456786,
         lng: 3.89636993408203,
         ref: nil,
         geocoding_accuracy: nil,
-        foo: 'bar'
+        foo: 'bar',
+        icon: 'fa-bars',
+        icon_size: 'small',
       }]}
-      assert_equal 204, last_response.status, 'Bad response ' + last_response.body
+      assert last_response.ok?, last_response.body
+      json = JSON.parse(last_response.body)
+      assert_equal 1, json.size
+      assert_equal 'fra', json[0]['country']
+      assert_equal 'fa-bars', json[0]['icon']
+      assert_equal 'small', json[0]['icon_size']
     end
   end
 

@@ -30,12 +30,16 @@ gem 'sdoc', '~> 0.4.0', group: :doc
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
 
-group :development, :test do
-  # Call 'byebug' anywhere in the code to stop execution and get a debugger console
-  gem 'byebug'
+group :development do
 
   # Access an IRB console on exception pages or by using <%= console %> in views
   gem 'web-console', '~> 2.0'
+
+end
+
+group :development, :test do
+  # Call 'byebug' anywhere in the code to stop execution and get a debugger console
+  gem 'byebug'
 
   # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
   #gem 'spring'
@@ -55,17 +59,18 @@ group :test do
   gem 'webmock'
   gem 'tidy-html5', github: 'moneyadviceservice/tidy-html5-gem'
   gem 'html_validation'
-end
 
-group :test do
   gem 'rspec-rails', '~> 3.0.0'
+
+  gem 'mapotempo_web_by_time_distance', github: 'Mapotempo/mapotempo_web_by_time_distance'
+  gem 'mapotempo_web_import_vehicle_store', github: 'Mapotempo/mapotempo_web_import_vehicle_store'
 end
 
 gem 'grape', github: 'ruby-grape/grape' # FIXME wait v0.14
 gem 'grape-entity'
 gem 'grape-swagger', github: 'ruby-grape/grape-swagger' # FIXME wait v0.10.3
 gem 'rack-cors'
-gem 'swagger-docs', github: 'richhollis/swagger-docs' # FIXME wait after v0.1.9
+gem 'swagger-docs'
 
 gem 'rails-i18n'
 gem 'execjs'
@@ -73,17 +78,19 @@ gem 'therubyracer'
 gem 'devise'
 gem 'devise-i18n'
 gem 'devise-i18n-views'
-gem 'devise-token_authenticatable'
 gem 'cancancan', '=1.11.0' # FIXME wait for ruby 2.0
 gem 'lograge'
 gem 'validates_timeliness'
 gem 'rails_engine_decorators'
 
+gem 'font-awesome-rails'
 gem 'twitter-bootstrap-rails'
 gem 'twitter_bootstrap_form_for', github: 'frodrigo/twitter_bootstrap_form_for' # FIXME wait for pull request
 gem 'bootstrap-filestyle-rails'
 gem 'bootstrap-wysihtml5-rails'
 gem 'bootstrap-datepicker-rails'
+gem 'bootstrap-select-rails'
+
 gem 'sanitize'
 gem 'iconv'
 
@@ -105,7 +112,7 @@ gem 'jquery-ui-rails'
 gem 'jquery-tablesorter'
 gem 'jquery-simplecolorpicker-rails'
 gem 'jquery-timeentry-rails', github: 'frodrigo/jquery-timeentry-rails'
-gem 'select2-rails'
+gem 'select2-rails', '=4.0.0' # FIXME test compatibility with planning sidebar
 gem 'i18n-js'
 gem 'mustache', '<1.0.0' # FIXME wait for ruby 2.0
 gem 'smt_rails'
@@ -135,3 +142,5 @@ gem 'savon-multipart', '~> 2.0.2'
 gem 'rest-client'
 gem 'macaddr'
 gem 'rubyzip'
+
+gem 'pnotify-rails'
