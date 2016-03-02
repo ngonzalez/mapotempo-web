@@ -488,7 +488,7 @@ var plannings_edit = function(params) {
           }
         });
         // Reset Dropdown
-        $(e.target).closest('.dropdown-menu').dropdown('toggle');
+        $(this).closest(".dropdown-menu").prev().dropdown("toggle");
         return false;
       });
     });
