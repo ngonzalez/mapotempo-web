@@ -16,6 +16,36 @@
 // <http://www.gnu.org/licenses/agpl.html>
 //
 var vehicle_usage_sets_index = function(params) {
+
+  var loading;
+  $.each($(".external-service"), function(i, element) {
+    $(element).click(function(e) {
+      if ($(element).data('service-name') && $(element).data('device-infos')) {
+        if ($.trim($(element).html()) == $(element).data('service-name')) {
+          $(element).html($(element).data('device-infos'));
+        } else {
+          $(element).html($(element).data('service-name'));
+        }
+      } else if (!loading) {
+        loading = true;
+        $.ajax({
+          url: '/api/0.1/devices/tomtom/infos',
+          data: { vehicle_id: $(e.target).closest('[data-id]').data('id') },
+          dataType: 'json',
+          success: function(data, textStatus, jqXHR) {
+            var array = [];
+            $.each(data, function(k, v) { array.push(v) });
+            var device_infos = array.join(' - ');
+            $(element).data('service-name', $.trim($(element).html()));
+            $(element).data('device-infos', device_infos);
+            $(element).html(device_infos);
+            loading = undefined;
+          }
+        });
+      }
+    });
+  });
+
   // override accordion collapse bootstrap code
   $('a.accordion-toggle').click(function() {
     var id = $(this).attr('href');

@@ -84,6 +84,15 @@ class V01::Devices::Tomtom < Grape::API
         status 204
       end
 
+      desc 'Device Infos', detail: 'Device Infos'
+      params do
+        requires :vehicle_id, type: Integer, desc: 'Vehicle ID'
+      end
+      get '/infos' do
+        vehicle = @customer.vehicles.find params[:vehicle_id]
+        service.show_contracts vehicle.tomtom_id
+      end
+
     end
   end
 end

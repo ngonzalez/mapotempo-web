@@ -43,4 +43,10 @@ class TomtomService < DeviceService
       service.list_addresses customer
     end
   end
+
+  def show_contracts device_id
+    with_cache [:show_contracts, service_name, customer.id, customer.tomtom_account] do
+      service.show_contracts(customer, device_id)[:pnd].slice :type, :serial_no, :nc_version
+    end
+  end
 end

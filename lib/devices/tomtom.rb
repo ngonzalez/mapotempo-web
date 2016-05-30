@@ -55,6 +55,12 @@ class Tomtom < DeviceBase
     'blue' => '#0000FF'
   }
 
+  def show_contracts customer, device_id
+    objects = get customer, savon_client_objects, :show_contracts
+    objects = [objects] if objects.is_a?(Hash)
+    objects.detect{|item| item[:@object_uid] == device_id }
+  end
+
   def test_list customer, params
     list_devices customer, { auth: params.slice(:account, :user, :password) }
   end

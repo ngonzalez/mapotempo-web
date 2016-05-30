@@ -11,8 +11,8 @@
   </thead>
   <tbody>
     <% vehicle_usage_set.vehicle_usages.each do |vehicle_usage| %>
-      <tr class="<%= 'disabled' if !vehicle_usage.active %>">
-        <td>
+      <tr class="<%= 'disabled' if !vehicle_usage.active %>" data-id="<%= vehicle_usage.vehicle_id %>">
+        <td style="min-width:200px;">
           <div class="vehicle_color" style="background:<%= vehicle_usage.vehicle.color %>"></div>
           <%= vehicle_usage.vehicle.name %>
         </td>
@@ -31,7 +31,7 @@
         <td>
           <%= vehicle_usage_store_hours vehicle_usage %>
         </td>
-        <td>
+        <td class="<%= 'external-service' if vehicle_usage.vehicle.available_position? %>" style="min-width:250px;">
           <%= vehicle_external_services vehicle_usage.vehicle %>
         </td>
         <td class="text-right">
