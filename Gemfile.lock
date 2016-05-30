@@ -24,7 +24,7 @@ GIT
 
 GIT
   remote: git://github.com/Mapotempo/mapotempo_web_import_vehicle_store.git
-  revision: b40272e6edd7297c4c6a9c27fb49a2bdc930ffc7
+  revision: 76c8e73d78a24ecf89d95fc091ed60a7e8a99b99
   specs:
     mapotempo_web_import_vehicle_store (0.0.1)
 
