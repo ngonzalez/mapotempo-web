@@ -942,6 +942,8 @@ fr:
       edit_visit_help: "Modifier les informations du client"
       marker_help: "Visualiser sur la carte"
       automatic_insert_help: "Propose un endroit pour insérer ce client dans une tournée"
+      automatic_insert_help_multiple: "Propose un endroit pour insérer les clients dans des tournées"
+      automatic_insert_confirm: "Êtes-vous sûr ? Les résultats ne seront pas optimisés et les placements se feront sur les tournées de ce planning."
       active_all: "Tous"
       active_reverse: "Inverser"
       active_none: "Aucun"
@@ -1206,6 +1208,7 @@ fr:
       edit: "Modifier votre identifiant de connexion et mot de passe"
     form:
       url_click2call_help: "URL de la solution de communication VOIP. L'URL doit prendre le paramètre '{TEL}' à l'emplacement du numéro de téléphone."
+      send_email: "Envoyer Email"
     update:
       success: "Utilisateur mis à jour avec succès"
     password:
