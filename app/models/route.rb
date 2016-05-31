@@ -37,10 +37,8 @@ class Route < ActiveRecord::Base
     enable
 
     customize(lambda { |original, copy|
-      copy.planning = original.planning
-      copy.stops.each{ |stop|
-        stop.route = copy
-      }
+      def copy.update_vehicle_usage; end
+      def copy.assign_defaults; end
     })
   end
 
@@ -361,23 +359,25 @@ class Route < ActiveRecord::Base
     }
 
     stops_on = stops_segregate[true]
-    position_start = (vehicle_usage.default_store_start && vehicle_usage.default_store_start.position?) ? [vehicle_usage.default_store_start.lat, vehicle_usage.default_store_start.lng] : [nil, nil]
-    position_stop = (vehicle_usage.default_store_stop && vehicle_usage.default_store_stop.position?) ? [vehicle_usage.default_store_stop.lat, vehicle_usage.default_store_stop.lng] : [nil, nil]
     amalgamate_stops_same_position(stops_on) { |positions|
-      tws = [[nil, nil, 0]] + positions.collect{ |position|
+
+      services = positions.collect{ |position|
         open, close, duration = position[2..4]
         open = open ? Integer(open - vehicle_usage.default_open) : nil
         close = close ? Integer(close - vehicle_usage.default_open) : nil
         if open && close && open > close
           close = open
         end
-        [open, close, duration]
+        {start: open, end: close, duration: duration}
       }
 
+      position_start = (vehicle_usage.default_store_start && !vehicle_usage.default_store_start.lat.nil? && !vehicle_usage.default_store_start.lng.nil?) ? [vehicle_usage.default_store_start.lat, vehicle_usage.default_store_start.lng] : [nil, nil]
+      position_stop = (vehicle_usage.default_store_stop && !vehicle_usage.default_store_stop.lat.nil? && !vehicle_usage.default_store_stop.lng.nil?) ? [vehicle_usage.default_store_stop.lat, vehicle_usage.default_store_stop.lng] : [nil, nil]
       positions = [position_start] + positions + [position_stop]
-      speed_multiplicator = vehicle_usage.vehicle.default_speed_multiplicator
-      order = unnil_positions(positions, tws){ |positions, tws, rest_tws|
+      order = unnil_positions(positions, services){ |positions, services, rests|
         positions = positions[(position_start == [nil, nil] ? 1 : 0)..(position_stop == [nil, nil] ? -2 : -1)].collect{ |position| position[0..1] }
+        speed_multiplicator = vehicle_usage.vehicle.default_speed_multiplicator
+
         matrix = router.matrix(positions, positions, speed_multiplicator, router_dimension, speed_multiplicator_areas: speed_multiplicator_areas, &matrix_progress)
         if position_start == [nil, nil]
           matrix = [[[0, 0]] * matrix.length] + matrix
@@ -387,7 +387,7 @@ class Route < ActiveRecord::Base
           matrix += [[[0, 0]] * matrix.length]
           matrix.collect!{ |x| x + [[0, 0]] }
         end
-        optimizer.call(matrix, tws, rest_tws, router_dimension)
+        optimizer.call(matrix, services, [position_start == [nil, nil] ? nil : :start, position_stop == [nil, nil] ? nil : :stop].compact, rests, router_dimension)
       }
       order[1..-2].collect{ |i| i - 1 }
     }
@@ -526,27 +526,21 @@ class Route < ActiveRecord::Base
   end
 
   def unnil_positions(positions, tws)
-    # start/stop are not removed in case they are not geocoded
+    # start/stop are always in input positions
     not_nil_position_index = positions[1..-2].each_with_index.group_by{ |position, index| !position[0].nil? && !position[1].nil? }
 
     if not_nil_position_index.key?(true)
-      not_nil_position = not_nil_position_index[true].collect{ |position, index| position }
-      not_nil_tws = not_nil_position_index[true][0..-1].collect{ |position, index| tws[index + 1] }
-      not_nil_index = not_nil_position_index[true].collect{ |position, index| index + 1 }
+      not_nil_position, not_nil_tws, not_nil_index = not_nil_position_index[true].collect{ |position, index| [position, tws[index], index + 1] }.transpose
     else
-      not_nil_position = []
-      not_nil_tws = []
-      not_nil_index = []
+      not_nil_position = not_nil_tws = not_nil_index = []
     end
     if not_nil_position_index.key?(false)
-      nil_tws = not_nil_position_index[false].collect{ |position, index| tws[index + 1] }
-      nil_index = not_nil_position_index[false].collect{ |position, index| index + 1 }
+      nil_tws, nil_index = not_nil_position_index[false].collect{ |position, index| [tws[index], index  + 1] }.transpose
     else
-      nil_tws = []
-      nil_index = []
+      nil_tws = nil_index = []
     end
 
-    order = yield([positions[0]] + not_nil_position + [positions[-1]], [tws[0]] + not_nil_tws, nil_tws)
+    order = yield([positions[0]] + not_nil_position + [positions[-1]], not_nil_tws, nil_tws)
 
     all_index = [0] + not_nil_index + [positions.length - 1] + nil_index
     order.collect{ |o| all_index[o] }

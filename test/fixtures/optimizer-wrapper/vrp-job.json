@@ -1,0 +1,87 @@
+HTTP/1.1 200 OK
+
+{
+  "job": {
+    "id": "fef5b9ff546d2fa0d605caec7026e8aa",
+    "status": "completed"
+  },
+  "solution": {
+    "costs": 0,
+    "total_travel_distance": 0,
+    "total_travel_time": 0,
+    "total_waiting_time": 0,
+    "start_time": 0,
+    "end_time": 0,
+    "routes": [{
+      "vehicle_id": "v0",
+      "start_time": 0,
+      "end_time": 0,
+      "activities": [
+        {
+          "point_id": "p0",
+          "travel_distance": 0,
+          "travel_start_time": 0
+        },
+        {
+          "point_id": "p1",
+          "travel_distance": 0,
+          "travel_start_time": 0,
+          "waiting_duration": 0,
+          "arrival_time": 0,
+          "departure_time": 0,
+          "service_id": "s1"
+        },
+        {
+          "point_id": "p2",
+          "travel_distance": 0,
+          "travel_start_time": 0,
+          "waiting_duration": 0,
+          "arrival_time": 0,
+          "departure_time": 0,
+          "service_id": "s2"
+        },
+        {
+          "point_id": "p3",
+          "travel_distance": 0,
+          "travel_start_time": 0,
+          "waiting_duration": 0,
+          "arrival_time": 0,
+          "departure_time": 0,
+          "service_id": "s3"
+        },
+        {
+          "point_id": "p4",
+          "travel_distance": 0,
+          "travel_start_time": 0,
+          "waiting_duration": 0,
+          "arrival_time": 0,
+          "departure_time": 0,
+          "service_id": "s4"
+        },
+        {
+          "point_id": "p5",
+          "travel_distance": 0,
+          "travel_start_time": 0,
+          "waiting_duration": 0,
+          "arrival_time": 0,
+          "departure_time": 0,
+          "service_id": "s5"
+        },
+        {
+          "point_id": "p6",
+          "travel_distance": 0,
+          "travel_start_time": 0,
+          "waiting_duration": 0,
+          "arrival_time": 0,
+          "departure_time": 0,
+          "service_id": "s6"
+        },
+        {
+          "point_id": "p7",
+          "travel_distance": 0,
+          "travel_start_time": 0
+        }
+      ]
+    }]
+  }
+}
