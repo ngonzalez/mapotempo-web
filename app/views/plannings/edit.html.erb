@@ -138,6 +138,13 @@
             <li role="separator" class="divider"></li>
             <li><a class="export_spreadsheet"><i class="fa fa-table fa-fw"></i> <%= t '.export.spreadsheet' %></a></li>
             <li role="separator" class="divider"></li>
+            <li class="icalendar-export">
+              <%= link_to planning_path(@planning, format: :ics) do %>
+                <i class="fa fa-calendar fa-fw"></i>
+                <%= t '.export.icalendar.action' %>
+              <% end %>
+            </li>
+            <li role="separator" class="divider"></li>
             <li><%= link_to planning_path(@planning, format: :gpx) do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.gpx_route' %><% end %></li>
             <li><%= link_to planning_path(@planning, format: :gpx, track: true) do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.gpx_track' %><% end %></li>
             <li><%= link_to planning_path(@planning, format: :kmz) do %><i class="fa fa-mobile fa-fw"></i> <%= t '.export.kmz_track' %><% end %></li>
@@ -159,7 +166,7 @@
 
 <div id="map" class="sidebar-map"></div>
 
-<div id="planning-refresh-modal" class="modal fade" role="dialog">
+<div id="planning-refresh-modal" class="modal fade" role="dialog" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -181,7 +188,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="planning-spreadsheet-modal" role="dialog">
+<div class="modal fade" id="planning-spreadsheet-modal" role="dialog" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">

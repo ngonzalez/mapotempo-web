@@ -813,33 +813,9 @@ var destinations_index = function(params, api) {
 
     function error_callback() {
       stickyError(I18n.t('destinations.index.dialog.geocoding.error'));
-      dialog_geocoding.find('[data-dismiss]').show();
-      dialog_geocoding.on('hidden.bs.modal', function() {
-        $.ajax({
-          type: 'DELETE',
-          url: '/api/0.1/customers/' + data.geocoding.customer_id + '/job/' + data.geocoding.id + '.json',
-          success: function(data, textStatus, jqXHR) {
-            $.ajax({
-              type: 'GET',
-              url: '/destinations.json',
-              beforeSend: beforeSendWaiting,
-              success: checkForDisplayDestinations,
-              complete: completeWaiting,
-              error: ajaxError
-            });
-          }
-        });
-        dialog_geocoding.find('[data-dismiss]').hide();
-      });
-      dialog_geocoding.on('keyup', function(e) {
-        if (e.keyCode == 27) {
-          dialog_geocoding.modal('hide');
-          dialog_geocoding.off('keyup');
-        }
-      });
     }
 
-    if (!progress_dialog(data.geocoding, dialog_geocoding, '/destinations.json', checkForDisplayDestinations, error_callback)) {
+    if (!progressDialog(data.geocoding, dialog_geocoding, '/destinations.json', checkForDisplayDestinations, error_callback)) {
       return;
     }
 
@@ -1052,7 +1028,7 @@ var destinations_index = function(params, api) {
       }
 
       if (dialog_geocoding) dialog_geocoding.modal('hide');
-      $('#geocoding-danger-modal').modal('show');
+      $('#geocoding-danger-modal').modal({keyboard: true, show: true});
       $("#sort-geocoding").click(function(event, ui) {
         $('#geocoding-danger-modal').off('hidden.bs.modal', displayDestinationsAfterModal);
         $('#geocoding-danger-modal').modal('hide');
