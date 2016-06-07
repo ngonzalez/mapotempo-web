@@ -386,7 +386,7 @@ var destinations_import = function(params) {
         return $(e).val();
       })
       .map(function(i, e) {
-        return '"' + $(e).attr('name').replace(/import_csv\[column_def\]\[([^\]]+)\]/, '$1') + '": "' + $(e).val() + '"';
+        return '"' + $(e).attr('name').replace(/import_csv\[column_def\]\[([^\]]+)\]/, '$1') + '": ' + JSON.stringify($(e).val());
       }).get().join(', ');
     $.ajax({
       type: 'put',
@@ -784,7 +784,7 @@ var destinations_index = function(params, api) {
   }
 
   var globalGeocodingScore = function(level, accuracy) {
-    var ret = 0;
+    var ret = null;
     switch (level) {
       case 'point':
         ret = 5000;
