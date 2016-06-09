@@ -22,9 +22,8 @@ class ApplicationController < ActionController::Base
 
   layout :layout_by_resource
 
-  include HttpAcceptLanguage::AutoLocale
-
-  before_action :api_key?, :load_vehicles, :set_locale
+  before_action :api_key?, :load_vehicles
+  before_action :set_time_zone, :set_locale
 
   rescue_from CanCan::AccessDenied do |exception|
     redirect_to root_url, alert: exception.message
@@ -50,9 +49,12 @@ class ApplicationController < ActionController::Base
 
   protected
 
-  def set_locale
+  def set_time_zone
     Time.zone = current_user.time_zone if current_user
-    I18n.locale = http_accept_language.compatible_language_from %w(en fr)
+  end
+
+  def set_locale
+    I18n.locale = http_accept_language.compatible_language_from(%w(en fr)) || I18n.default_locale
   end
 
   def devise_parameter_sanitizer

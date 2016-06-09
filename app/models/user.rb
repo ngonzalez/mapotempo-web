@@ -29,6 +29,7 @@ class User < ActiveRecord::Base
 
   after_initialize :assign_defaults, if: 'new_record?'
   before_validation :assign_defaults_layer, if: 'new_record?'
+  after_initialize :set_default_time_zone
   before_save :set_time_zone
 
   validates :customer, presence: true, unless: :admin?
@@ -49,6 +50,7 @@ class User < ActiveRecord::Base
       copy.email = I18n.l(Time.now, format: '%Y%m%d%H%M%S') + '_' + copy.email
       copy.password = Devise.friendly_token
       copy.confirmation_token = nil
+      copy.api_key_random
     })
   end
 
@@ -69,15 +71,22 @@ class User < ActiveRecord::Base
     self.update! confirmation_sent_at: Time.now
   end
 
+  def api_key_random
+    self.api_key = SecureRandom.hex
+  end
+
   private
 
-  def set_time_zone
-    return if !self.time_zone.blank?
+  def set_default_time_zone
     self.time_zone = I18n.t('default_time_zone')
   end
 
+  def set_time_zone
+    set_default_time_zone if self.time_zone.blank?
+  end
+
   def assign_defaults
-    self.api_key ||= SecureRandom.hex
+    self.api_key || self.api_key_random
   end
 
   def assign_defaults_layer
