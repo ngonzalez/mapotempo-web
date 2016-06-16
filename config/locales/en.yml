@@ -34,7 +34,6 @@ en:
       hour_minute_second: "%H:%M:%S"
       complete: "%m-%d-%Y %H:%M:%S"
       datepicker: "%m-%d-%Y"
-      activerecord_default: "%d-%m-%Y"
   default_time_zone: "London"
 
   activemodel:
@@ -916,7 +915,6 @@ Best resgards,\n
         icalendar:
           action: "Calendar iCal"
           action_email: "Calendar iCal by E-Mail"
-          success: "File exported successfully"
           success_with_email: "File sucessfully sent by E-Mail"
           fail: "Failed to export"
         kmz_email:
@@ -959,14 +957,15 @@ Best resgards,\n
       route_duration_help: "Route duration / Vehicle time window"
       route_distance_help: "Route distance"
       route_quantity_help: "Quantity / Vehicle capacity"
-      drag_help: "Drag & drop account on routes"
-      active_help: "Take or not account into route"
+      drag_help: "Drag & drop stops on routes"
+      active_help: "Take or not stops into route"
       edit_store_help: "Edit store information"
-      edit_visit_help: "Edit visit/account information"
+      edit_visit_help: "Edit visit/customer information"
       marker_help: "Show on map"
       automatic_insert_help: "Find a route and insert this stop"
       automatic_insert_help_multiple: "Find routes and insert stops (result will not be optimized anymore)"
       automatic_insert_confirm: "Find a route for each stop? Result will not be optimized. Zonings are recommended to find a route for each stop with more exactness (Ok to continue anyway)."
+      automatic_insert_too_many: "Too many stops out of route. Zonings are recommended to find a route for each stop with more exactness."
       active_all: "All"
       active_reverse: "Reverse"
       active_none: "None"
@@ -990,8 +989,8 @@ Best resgards,\n
       error:
         no_geolocalization: "No geolocalization"
         no_geolocalization_help: "No geographical coordinates or addresses could not be located"
-        out_of_window: "Out of account time window"
-        out_of_window_help: "Visit planned out of his time window"
+        out_of_window: "Out of time window"
+        out_of_window_help: "Stop planned out of specified time windows"
         out_of_capacity: "Out of capacity"
         out_of_capacity_help: "Vehicle capacity exceeded"
         out_of_drive_time: "Out of vehicle time window"

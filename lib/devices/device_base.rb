@@ -19,11 +19,11 @@ class DeviceBase
   attr_accessor :api_url, :api_key
 
   def planning_date route
-    route.planning.date ? route.planning.date.beginning_of_day.to_time : Time.zone.now.beginning_of_day
+    route.planning.date ? route.planning.date.beginning_of_day : Time.zone.now.beginning_of_day
   end
 
   def p_time route, time
-    planning_date(route) + (time - Time.new(2000, 1, 1, 0, 0, 0, '+00:00'))
+    planning_date(route) + (time - Time.zone.local(2000, 1, 1, 0, 0))
   end
 end
 

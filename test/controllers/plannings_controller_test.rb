@@ -48,10 +48,41 @@ class PlanningsControllerTest < ActionController::TestCase
     assert_valid response
   end
 
-  test 'should create planning' do
+  test 'Create Planning' do
+    # EN
+    I18n.locale = I18n.default_locale = :en
+    assert_equal :en, I18n.locale
+    assert_difference('Planning.count') do
+      post :create, planning: { name: @planning.name, vehicle_usage_set_id: vehicle_usage_sets(:vehicle_usage_set_one).id, zoning_ids: @planning.zonings.collect(&:id), date: '10-30-2016' }
+    end
+    assert_redirected_to edit_planning_path(assigns(:planning))
+    assert assigns(:planning).persisted?
+    assert assigns(:planning).date.strftime("%d-%m-%Y") == '30-10-2016'
+
+    # FR
+    I18n.locale = I18n.default_locale = :fr
+    assert_equal :fr, I18n.locale
     assert_difference('Planning.count') do
       post :create, planning: { name: @planning.name, vehicle_usage_set_id: vehicle_usage_sets(:vehicle_usage_set_one).id, zoning_ids: @planning.zonings.collect(&:id), date: '30-10-2016' }
     end
+    assert_redirected_to edit_planning_path(assigns(:planning))
+    assert assigns(:planning).persisted?
+    assert assigns(:planning).date.strftime("%d-%m-%Y") == '30-10-2016'
+  end
+
+  test 'Update Planning' do
+    # EN
+    I18n.locale = I18n.default_locale = :en
+    assert_equal :en, I18n.locale
+    patch :update, id: @planning, planning: { name: @planning.name, zoning_ids: @planning.zonings.collect(&:id), date: '10-30-2016' }
+    assert_redirected_to edit_planning_path(assigns(:planning))
+    assert assigns(:planning).persisted?
+    assert assigns(:planning).date.strftime("%d-%m-%Y") == '30-10-2016'
+
+    # FR
+    I18n.locale = I18n.default_locale = :fr
+    assert_equal :fr, I18n.locale
+    patch :update, id: @planning, planning: { name: @planning.name, zoning_ids: @planning.zonings.collect(&:id), date: '30-10-2016' }
     assert_redirected_to edit_planning_path(assigns(:planning))
     assert assigns(:planning).persisted?
     assert assigns(:planning).date.strftime("%d-%m-%Y") == '30-10-2016'
@@ -94,7 +125,7 @@ class PlanningsControllerTest < ActionController::TestCase
     get :show, id: @planning, format: :csv
     assert_response :success
     assert_equal 'route_zero,,,visite,,,,,,"","","",a,unaffected_one,MyString,MyString,MyString,MyString,,1.5,1.5,MyString,MyString,tag1,a,00:01:00,,10:00,11:00,tag1', response.body.split("\n")[1]
-    assert_equal 'route_one,001,1,visite,1,,00:00,1.1,,"","","",b,destination_one,Rue des Lilas,MyString,33200,Bordeau,,49.1857,-0.3735,MyString,MyString,"",b,00:05:33,P1/P2,10:00,11:00,tag1', response.body.split("\n").select{ |l| l.include?('001') }[1]
+    assert_equal 'route_one,001,1,visite,1,,14:00,1.1,,"","","",b,destination_one,Rue des Lilas,MyString,33200,Bordeau,,49.1857,-0.3735,MyString,MyString,"",b,00:05:33,P1/P2,10:00,11:00,tag1', response.body.split("\n").select{ |l| l.include?('001') }[1]
   end
 
   test 'should show planning as csv with ordered columns' do
@@ -129,13 +160,6 @@ class PlanningsControllerTest < ActionController::TestCase
     get :edit, id: @planning
     assert_response :success
     assert_valid response
-  end
-
-  test 'should update planning' do
-    patch :update, id: @planning, planning: { name: @planning.name, zoning_ids: @planning.zonings.collect(&:id), date: '30-10-2016' }
-    assert_redirected_to edit_planning_path(assigns(:planning))
-    assert assigns(:planning).persisted?
-    assert assigns(:planning).date.strftime("%d-%m-%Y") == '30-10-2016'
   end
 
   test 'should update planning and change zoning' do
@@ -265,7 +289,9 @@ class PlanningsControllerTest < ActionController::TestCase
     patch :automatic_insert, id: @planning.id, format: :json, stop_ids: [stops(:stop_unaffected).id]
     assert_response :success
     assert_equal 2, assigns(:routes).length
-    assert_equal 2, JSON.parse(response.body)['routes'].size
+    routes = JSON.parse(response.body)['routes']
+    assert_equal 2, routes.size
+    assert_equal [], routes.first['stops']
   end
 
   test 'Automatic Insert With Bad IDs' do

@@ -65,7 +65,7 @@ class OrderArraysController < ApplicationController
 
   def new
     @order_array = current_user.customer.order_arrays.build
-    @order_array.base_date = Date.today
+    @order_array.base_date = Time.zone.today
   end
 
   def edit
@@ -131,7 +131,8 @@ class OrderArraysController < ApplicationController
 
   # Never trust parameters from the scary internet, only allow the white list through.
   def order_array_params
-    params[:order_array][:base_date] = Date.strptime(params[:order_array][:base_date], I18n.t('time.formats.datepicker')).strftime(I18n.t('time.formats.activerecord_default')) if params[:order_array] && !params[:order_array][:base_date].blank?
-    params.require(:order_array).permit(:name, :base_date, :length)
+    p = params.require(:order_array).permit(:name, :base_date, :length)
+    p[:base_date] = Date.strptime(p[:base_date], I18n.t('time.formats.datepicker')).strftime(ACTIVE_RECORD_DATE_MASK) if !p[:base_date].blank?
+    p
   end
 end
