@@ -158,7 +158,7 @@ fr:
         router: "Calculateur d'itinéraire"
         router_id: "Calculateur d'itinéraire"
         router_dimension: "Objectif du calculateur"
-        print_planning_annotating: "Émargement des feuilles de routes"
+        print_planning_annotating: "Inclure un émargement client"
         print_header: "Entête des tournées"
         print_stop_time: "Inclure les horaires de passage"
         print_map: "Inclure la carte"
@@ -471,6 +471,7 @@ fr:
       duplicate_order: "Commande déjà envoyée"
       busy_processing: "Compte occupé à traiter une autre demande"
       gps_unreachable: "GPS actuellement indisponible"
+      last_action_failed: "Votre dernier envoi n'a pas fonctionné"
     teksat:
       bad_url: "URL non valide"
       get_ticket: "Échec de l'identification. Veuillez vérifier vos identifiants"
