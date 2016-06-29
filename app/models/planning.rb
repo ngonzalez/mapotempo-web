@@ -355,12 +355,10 @@ class Planning < ActiveRecord::Base
         if h[vehicle_usage.vehicle] && vehicle_usage.active
           h[vehicle_usage.vehicle].vehicle_usage = vehicle_usage
           h[vehicle_usage.vehicle].save!
-        else
-          if vehicle_usage.active
-            vehicle_usage_add vehicle_usage
-          else
-            vehicle_usage_remove h[vehicle_usage.vehicle].vehicle_usage
-          end
+        elsif vehicle_usage.active
+          vehicle_usage_add vehicle_usage
+        elsif h[vehicle_usage.vehicle]
+          vehicle_usage_remove h[vehicle_usage.vehicle].vehicle_usage
         end
       }
       compute

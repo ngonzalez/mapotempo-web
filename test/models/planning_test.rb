@@ -1,4 +1,5 @@
 require 'test_helper'
+require 'mocha/test_unit'
 require 'routers/osrm'
 
 class PlanningTest < ActiveSupport::TestCase
@@ -395,6 +396,30 @@ class PlanningTest < ActiveSupport::TestCase
     dup_planning.save!
     assert dup_planning.zoning_out_of_date
   end
+
+  test 'Planning Vehicle Usage Set / Routes Not In Sync' do
+    customer = customers :customer_one
+    planning = plannings :planning_one
+
+    Vehicle.any_instance.stubs(:create_vehicle_usage).returns(true)
+
+    # Create new Vehicle Usage Set, mock callbacks to make sure Planning Routes are not updated
+    vehicle_usage_set = customer.vehicle_usage_sets.create! name: "Vehicle Usage Set #{Time.now.to_i}"
+    vehicle = customer.vehicles.create! capacity: 100, name: "Vehicle #{Time.now.to_i}"
+    vehicle_usage = vehicle_usage_set.vehicle_usages.create! vehicle: vehicle
+    vehicle_usage.update! active: false
+
+    # Hypothetic situation where one of the VUS Vehicles is not on the Planning Routes and its Vehicle Usage is disabled
+    routes_vehicles = planning.routes.select(&:vehicle_usage).map(&:vehicle_usage).map(&:vehicle)
+    assert vehicle_usage_set.vehicle_usages.map(&:vehicle).any?{|vehicle| routes_vehicles.exclude?(vehicle) && vehicle.vehicle_usages.none?(&:active?) }
+    planning.vehicle_usage_set = vehicle_usage_set
+    planning.save!
+
+    # Make sure saving the Planning has updated routes
+    assert_equal planning.vehicle_usage_set.vehicle_usages.select(&:active?).map{|item| [item.vehicle_id, item.active] }.sort,
+      planning.routes.select(&:vehicle_usage).map(&:vehicle_usage).select(&:active?).map{|item| [item.vehicle_id, item.active] }.sort
+  end
+
 end
 
 class PlanningTestError < ActiveSupport::TestCase

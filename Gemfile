@@ -162,3 +162,7 @@ gem 'pnotify-rails'
 gem 'nokogiri'
 gem 'addressable'
 gem 'icalendar'
+
+group :test do
+  gem 'mocha'
+end

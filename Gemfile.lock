@@ -297,6 +297,7 @@ GEM
     mail (2.5.4)
       mime-types (~> 1.16)
       treetop (~> 1.4.8)
+    metaclass (0.0.4)
     mime-types (1.25.1)
     mini_portile2 (2.0.0)
     minitest (5.8.4)
@@ -305,6 +306,8 @@ GEM
     minitest-focus (1.1.2)
       minitest (>= 4, < 6)
     minitest-stub_any_instance (1.0.1)
+    mocha (1.1.0)
+      metaclass (~> 0.0.1)
     multi_json (1.11.2)
     multi_xml (0.5.5)
     mustache (0.99.8)
@@ -570,6 +573,7 @@ DEPENDENCIES
   minitest-around
   minitest-focus
   minitest-stub_any_instance
+  mocha
   mustache (< 1.0.0)
   nilify_blanks
   nokogiri
@@ -612,4 +616,4 @@ DEPENDENCIES
   webmock
 
 BUNDLED WITH
-   1.11.2
+   1.12.5
