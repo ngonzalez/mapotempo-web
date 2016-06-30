@@ -62,8 +62,10 @@ class ImporterDestinations < ImporterBase
     {
       # Visit
       ref_visit: {title: I18n.t('destinations.import_file.ref_visit'), desc: I18n.t('destinations.import_file.ref_visit_desc'), format: I18n.t('destinations.import_file.format.string')},
-      open: {title: I18n.t('destinations.import_file.open'), desc: I18n.t('destinations.import_file.open_desc'), format: I18n.t('destinations.import_file.format.hour')},
-      close: {title: I18n.t('destinations.import_file.close'), desc: I18n.t('destinations.import_file.close_desc'), format: I18n.t('destinations.import_file.format.hour')},
+      open1: {title: I18n.t('destinations.import_file.open1'), desc: I18n.t('destinations.import_file.open_desc1'), format: I18n.t('destinations.import_file.format.hour')},
+      close1: {title: I18n.t('destinations.import_file.close1'), desc: I18n.t('destinations.import_file.close_desc1'), format: I18n.t('destinations.import_file.format.hour')},
+      open2: {title: I18n.t('destinations.import_file.open2'), desc: I18n.t('destinations.import_file.open_desc2'), format: I18n.t('destinations.import_file.format.hour')},
+      close2: {title: I18n.t('destinations.import_file.close2'), desc: I18n.t('destinations.import_file.close_desc2'), format: I18n.t('destinations.import_file.format.hour')},
       tags_visit: {title: I18n.t('destinations.import_file.tags_visit'), desc: I18n.t('destinations.import_file.tags_visit_desc'), format: I18n.t('destinations.import_file.tags_format')},
       take_over: {title: I18n.t('destinations.import_file.take_over'), desc: I18n.t('destinations.import_file.take_over_desc'), format: I18n.t('destinations.import_file.format.second')},
       quantity: {title: I18n.t('destinations.import_file.quantity'), desc: I18n.t('destinations.import_file.quantity_desc'), format: I18n.t('destinations.import_file.format.integer')},
@@ -77,7 +79,7 @@ class ImporterDestinations < ImporterBase
   def json_to_rows(json)
     json.collect{ |dest|
       dest[:tags] = dest[:tag_ids].collect(&:to_i) if !dest.key?(:tags) && dest.key?(:tag_ids)
-      if dest.key?(:visits) && dest[:visits].size > 0
+      if dest.key?(:visits) && !dest[:visits].empty?
         dest[:visits].collect{ |v|
           v[:ref_visit] = v.delete(:ref)
           v[:tags_visit] = v[:tag_ids].collect(&:to_i) if !v.key?(:tags) && v.key?(:tag_ids)
@@ -90,7 +92,7 @@ class ImporterDestinations < ImporterBase
   end
 
   def rows_to_json(rows)
-    dest_ids = rows.collect{ |d| d.id }.uniq
+    dest_ids = rows.collect(&:id).uniq
     @customer.destinations.select{ |d|
       dest_ids.include?(d.id)
     }
@@ -102,11 +104,7 @@ class ImporterDestinations < ImporterBase
     @tag_ids = Hash[@customer.tags.collect{ |tag| [tag.id, tag] }]
     @routes = Hash.new{ |h, k|
       h[k] = Hash.new{ |hh, kk|
-        if kk == :visits
-          hh[kk] = []
-        else
-          hh[kk] = nil
-        end
+        hh[kk] = kk == :visits ? [] : nil
       }
     }
 
@@ -175,13 +173,13 @@ class ImporterDestinations < ImporterBase
         destination = @customer.destinations.build(destination_attributes)
       end
       if row[:without_visit].nil? || row[:without_visit].strip.empty?
-        if !row[:ref_visit].nil? && !row[:ref_visit].strip.empty?
-          visit = destination.visits.find{ |visit|
+        visit = if !row[:ref_visit].nil? && !row[:ref_visit].strip.empty?
+          destination.visits.find{ |visit|
             visit.ref && visit.ref == row[:ref_visit]
           }
         else
           # Get the first visit without ref
-          visit = destination.visits.find{ |v| !v.ref }
+          destination.visits.find{ |v| !v.ref }
         end
         if visit
           visit.assign_attributes(visit_attributes.compact) # FIXME: don't use compact to overwrite database with row containing nil
@@ -234,7 +232,7 @@ class ImporterDestinations < ImporterBase
 
       # Add visit to route if needed
       if row.key?(:route) && !@visit_ids.include?(visit.id)
-        @routes[row[:route]][:ref_vehicle] = row[:ref_vehicle].gsub(/[\.\/\\]/, ' ') if row[:ref_vehicle]
+        @routes[row[:route]][:ref_vehicle] = row[:ref_vehicle].gsub(%r{[\./\\]}, ' ') if row[:ref_vehicle]
         @routes[row[:route]][:visits] << [visit, ValueToBoolean.value_to_boolean(row[:active], true)]
         @visit_ids << visit.id
       end
@@ -250,7 +248,7 @@ class ImporterDestinations < ImporterBase
   end
 
   def after_import(name, options)
-    if @destinations_to_geocode.size > 0 && (@synchronous || !Mapotempo::Application.config.delayed_job_use)
+    if !@destinations_to_geocode.empty? && (@synchronous || !Mapotempo::Application.config.delayed_job_use)
       @destinations_to_geocode.each_slice(50){ |destinations|
         geocode_args = destinations.collect(&:geocode_args)
         begin
@@ -258,16 +256,15 @@ class ImporterDestinations < ImporterBase
           destinations.zip(results).each { |destination, result|
             destination.geocode_result(result) if result
           }
-        rescue GeocodeError => e # avoid stop import because of geocoding job
+        rescue GeocodeError # avoid stop import because of geocoding job
         end
       }
     end
 
     @customer.save!
 
-    if @routes.keys.compact.size > 0
-
-      @planning = @customer.plannings.find_by(ref: @planning_hash['ref']) if @planning_hash.has_key?('ref')
+    if !@routes.keys.compact.empty?
+      @planning = @customer.plannings.find_by(ref: @planning_hash['ref']) if @planning_hash.key?('ref')
 
       @planning = @customer.plannings.build if !@planning
 
@@ -285,10 +282,10 @@ class ImporterDestinations < ImporterBase
   end
 
   def finalize_import(name, options)
-    if @destinations_to_geocode.size > 0 && !@synchronous && Mapotempo::Application.config.delayed_job_use
+    if !@destinations_to_geocode.empty? && !@synchronous && Mapotempo::Application.config.delayed_job_use
       @customer.job_destination_geocoding = Delayed::Job.enqueue(GeocoderDestinationsJob.new(@customer.id, @planning ? @planning.id : nil))
-    else
-      @planning.compute(ignore_errors: true) if @planning
+    elsif @planning
+      @planning.compute(ignore_errors: true)
     end
 
     @customer.save!

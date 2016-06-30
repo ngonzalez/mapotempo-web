@@ -34,6 +34,15 @@ class User < ActiveRecord::Base
   validates :customer, presence: true, unless: :admin?
   validates :layer, presence: true
 
+  attr_accessor :send_email
+
+  after_create :send_welcome_email, if: lambda{|user| user.send_email.to_i == 1 }
+
+  def send_welcome_email
+    Mapotempo::Application.config.delayed_job_use ? UserMailer.delay.welcome_message(self) : UserMailer.welcome_message(self).deliver_now
+    self.update! confirmation_sent_at: Time.now
+  end
+
   include RefSanitizer
 
   include Confirmable
@@ -41,7 +50,7 @@ class User < ActiveRecord::Base
   amoeba do
     enable
 
-    customize(lambda { |original, copy|
+    customize(lambda { |_original, copy|
       def copy.assign_defaults; end
       def copy.assign_defaults_layer; end
       def copy.generate_confirmation_token; end
@@ -66,11 +75,6 @@ class User < ActiveRecord::Base
     end
   end
 
-  def send_welcome_email
-    Mapotempo::Application.config.delayed_job_use ? UserMailer.delay.welcome_message(self, I18n.locale) : UserMailer.welcome_message(self, I18n.locale).deliver_now
-    self.update! confirmation_sent_at: Time.now.utc
-  end
-
   def api_key_random
     self.api_key = SecureRandom.hex
   end
@@ -91,10 +95,10 @@ class User < ActiveRecord::Base
   end
 
   def assign_defaults_layer
-    if admin?
-      self.layer ||= Layer.order(:id).find_by!(overlay: false)
+     self.layer ||= if admin?
+       Layer.order(:id).find_by!(overlay: false)
     else
-      self.layer ||= customer && customer.profile.layers.order(:id).find_by!(overlay: false)
+      customer && customer.profile.layers.order(:id).find_by!(overlay: false)
     end
   end
 end
