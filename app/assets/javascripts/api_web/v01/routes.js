@@ -15,7 +15,6 @@
 // along with Mapotempo. If not, see:
 // <http://www.gnu.org/licenses/agpl.html>
 //
-
 var api_web_v01_routes_index = function(params) {
   var progressBar = Turbolinks.enableProgressBar();
   progressBar && progressBar.advanceTo(25);
@@ -31,7 +30,9 @@ var api_web_v01_routes_index = function(params) {
     routes_layers_cluster;
 
   var map = mapInitialize(params);
-  L.control.attribution({prefix: false}).addTo(map);
+  L.control.attribution({
+    prefix: false
+  }).addTo(map);
   L.control.scale({
     imperial: false
   }).addTo(map);
@@ -41,12 +42,12 @@ var api_web_v01_routes_index = function(params) {
     caption.classList.add('leaflet-bar');
     var control_caption = L.Control.extend({
       options: {
-          position: 'bottomright'
+        position: 'bottomright'
       },
-      onAdd: function (map) {
-          var container = caption;
-          L.DomEvent.disableClickPropagation(container);
-          return container;
+      onAdd: function(map) {
+        var container = caption;
+        L.DomEvent.disableClickPropagation(container);
+        return container;
       }
     });
     map.addControl(new control_caption());
@@ -115,7 +116,8 @@ var api_web_v01_routes_index = function(params) {
         spiderfyDistanceMultiplier: 0.5,
         iconCreateFunction: function(cluster) {
           var markers = cluster.getAllChildMarkers();
-          var n = [], i;
+          var n = [],
+            i;
           for (i = 0; i < markers.length; i++) {
             if (markers[i].number) {
               if (n.length < 2) {
@@ -153,8 +155,9 @@ var api_web_v01_routes_index = function(params) {
           stop.vehicle_name = vehicle_name;
           stop.route_id = route.route_id;
           stop.routes = data.routes;
-          if ((data.routes && data.routes.length == 1) || (route_ids && route_ids.length == 1))
+          if ((data.routes && data.routes.length == 1) || (route_ids && route_ids.length == 1)) {
             stop.one_route = true;
+          }
           stop.planning_id = data.planning_id;
           var m = L.marker(new L.LatLng(stop.lat, stop.lng), {
             icon: new L.NumberedDivIcon({
@@ -165,7 +168,9 @@ var api_web_v01_routes_index = function(params) {
               popupAnchor: new L.Point(0, -6),
               className: "small"
             })
-          }).addTo(layers[route.route_id]).addTo(layers_cluster[route.route_id]).bindPopup(SMT['stops/show']({stop: stop}), {
+          }).addTo(layers[route.route_id]).addTo(layers_cluster[route.route_id]).bindPopup(SMT['stops/show']({
+            stop: stop
+          }), {
             minWidth: 200,
             autoPan: false
           });
@@ -202,7 +207,7 @@ var api_web_v01_routes_index = function(params) {
       routes_layers_cluster.addLayer(layers_cluster[route.route_id]);
       routes_layers.addLayer(layers[route.route_id]);
     });
-  }
+  };
 
   var display_planning_first_time = function(data) {
     $.each(data.routes, function(i, route) {
@@ -225,7 +230,9 @@ var api_web_v01_routes_index = function(params) {
             popupAnchor: new L.Point(0, -Math.floor(map.iconSize[store.icon_size || 'large'].size / 2.5)),
             className: 'store-icon-container'
           })
-        }).addTo(stores_marker).bindPopup(SMT['stops/show']({stop: store}), {
+        }).addTo(stores_marker).bindPopup(SMT['stops/show']({
+          stop: store
+        }), {
           minWidth: 200,
           autoPan: false
         });
@@ -260,15 +267,16 @@ var api_web_v01_routes_index = function(params) {
   }
 
   progressBar && progressBar.advanceTo(50);
-  queryParam = (route_ids) ? ('?' + $.param({ids: route_ids.join(',')})) : '';
+  queryParam = (route_ids) ? ('?' + $.param({
+    ids: route_ids.join(',')
+  })) : '';
   $.ajax({
     url: '/api-web/0.1/plannings/' + planning_id + '/routes.json' + queryParam,
     beforeSend: beforeSendWaiting,
     success: function(data) {
       if (data.routes && data.routes.length) {
         display_planning_first_time(data);
-      }
-      else {
+      } else {
         stickyError(I18n.t('api_web.v01.routes.index.none_routes'));
       }
       progressBar && progressBar.done();
@@ -276,7 +284,7 @@ var api_web_v01_routes_index = function(params) {
     complete: completeWaiting,
     error: ajaxError
   });
-}
+};
 
 Paloma.controller('ApiWeb/V01/Routes', {
   index: function() {

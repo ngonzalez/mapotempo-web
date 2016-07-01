@@ -19,7 +19,9 @@ var user_edit_settings = function(params) {
   var available_layers = params.map_available_layers;
 
   var map = mapInitialize(params);
-  L.control.attribution({prefix: false}).addTo(map);
+  L.control.attribution({
+    prefix: false
+  }).addTo(map);
 
   $('[name=user\\[layer_id\\]]').change(function(event) {
     map.removeLayer(map.tileLayer);
@@ -31,8 +33,7 @@ var user_edit_settings = function(params) {
   });
 
   $('.select2').select2();
-
-}
+};
 
 Paloma.controller('Users', {
   edit: function() {

@@ -18,7 +18,7 @@
 class Masternaut < DeviceBase
   attr_reader :client_poi, :client_job
 
-  def savon_client_poi customer
+  def savon_client_poi(customer)
     @client_poi ||= Savon.client(basic_auth: [customer.masternaut_user, customer.masternaut_password], wsdl: api_url + '/POI?wsdl', soap_version: 1) do
       #log true
       #pretty_print_xml true
@@ -26,7 +26,7 @@ class Masternaut < DeviceBase
     end
   end
 
-  def savon_client_job customer
+  def savon_client_job(customer)
     @client_job ||= Savon.client(basic_auth: [customer.masternaut_user, customer.masternaut_password], wsdl: api_url + '/Job?wsdl', multipart: true, soap_version: 1) do
       #log true
       #pretty_print_xml true
@@ -85,7 +85,7 @@ class Masternaut < DeviceBase
     '26' => 'an error occurred while creating the job item',
   }
 
-  def send_route customer, route, options={}
+  def send_route(customer, route, _options = {})
     order_id_base = Time.now.to_i.to_s(36) + '_' + route.id.to_s
     customer = route.planning.customer
     position = route.vehicle_usage.default_store_start
@@ -109,7 +109,8 @@ class Masternaut < DeviceBase
           stop.ref,
           stop.is_a?(StopVisit) ? (customer.enable_orders ? (stop.order ? stop.order.products.collect(&:code).join(',') : '') : stop.visit.quantity && stop.visit.quantity > 1 ? "x#{stop.visit.quantity}" : nil) : nil,
           stop.is_a?(StopVisit) ? (stop.visit.take_over ? '(' + stop.visit.take_over.strftime('%H:%M:%S') + ')' : nil) : route.vehicle_usage.default_rest_duration.strftime('%H:%M:%S'),
-          stop.open || stop.close ? (stop.open ? stop.open.strftime('%H:%M') : '') + '-' + (stop.close ? stop.close.strftime('%H:%M') : '') : nil,
+          stop.open1 || stop.close1 ? (stop.open1 ? stop.open1.strftime('%H:%M') : '') + '-' + (stop.close1 ? stop.close1.strftime('%H:%M') : '') : nil,
+          stop.open2 || stop.close2 ? (stop.open2 ? stop.open2.strftime('%H:%M') : '') + '-' + (stop.close2 ? stop.close2.strftime('%H:%M') : '') : nil,
           stop.detail,
           stop.comment,
           stop.phone_number,
@@ -125,7 +126,7 @@ class Masternaut < DeviceBase
 
   private
 
-  def createJobRoute customer, vehicleRef, reference, description, date, begin_time, end_time, waypoints
+  def createJobRoute(customer, vehicleRef, reference, description, date, begin_time, end_time, waypoints)
     time_2000 = Time.utc(2000, 1, 1, 0, 0, 0, '+00:00').to_i
 
     existing_waypoints = fetchPOI(customer)
@@ -143,7 +144,7 @@ class Masternaut < DeviceBase
     params = {
       jobRoute: {
         begin: (date.to_time + (begin_time.utc.to_i - time_2000)).strftime('%Y-%m-%dT%H:%M:%S'),
-        description: description ? description.gsub(/\r/, ' ').gsub(/\n/, ' ').gsub(/\s+/, ' ').strip[0..50] : nil,
+        description: description ? description.tr("\r", ' ').tr("\n", ' ').gsub(/\s+/, ' ').strip[0..50] : nil,
         end: (date.to_time + (end_time.utc.to_i - time_2000)).strftime('%Y-%m-%dT%H:%M:%S'),
         reference: reference,
       }
@@ -154,7 +155,7 @@ class Masternaut < DeviceBase
     waypoints.each{ |waypoint|
       params = {
         job: {
-          description: waypoint[:description].gsub(/\r/, ' ').gsub(/\n/, ' ').gsub(/\s+/, ' ').strip[0..255],
+          description: waypoint[:description].tr("\r", ' ').tr("\n", ' ').gsub(/\s+/, ' ').strip[0..255],
           poiReference: [waypoint[:id], waypoint[:updated_at].to_i.to_s(36)].join(':'),
           scheduledBegin: (date.to_time + (waypoint[:time].to_i - time_2000)).strftime('%Y-%m-%dT%H:%M:%S'),
           type: 'job',
@@ -167,7 +168,7 @@ class Masternaut < DeviceBase
     }
   end
 
-  def createPOICategory customer
+  def createPOICategory(customer)
     params = {
       category: {
         logo: 'client_green',
@@ -179,7 +180,7 @@ class Masternaut < DeviceBase
     get savon_client_poi(customer), nil, :create_poi_category, params, @@error_code_poi
   end
 
-  def fetchPOI customer
+  def fetchPOI(customer)
     params = {
       filter: {
         categoryReference: 'mapotempo',
@@ -204,10 +205,10 @@ class Masternaut < DeviceBase
     }.select{ |r|
       r
     }
-    fetch = Hash[fetch]
+    Hash[fetch]
   end
 
-  def createPOI customer, waypoint
+  def createPOI(customer, waypoint)
     params = {
       poi: {
         address: {
@@ -232,7 +233,7 @@ class Masternaut < DeviceBase
     get savon_client_poi(customer), 200, :create_poi, params, @@error_code_poi
   end
 
-  def get client, no_error_code, operation, message={}, error_code
+  def get(client, no_error_code, operation, message = {}, error_code)
     response = client.call(operation, message: message)
 
     op_response = (operation.to_s + '_response').to_sym

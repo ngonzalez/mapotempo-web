@@ -41,7 +41,7 @@ class PlanningsController < ApplicationController
       end
       format.kml do
         response.headers['Content-Disposition'] = 'attachment; filename="' + filename + '.kml"'
-        render "plannings/show", locals: { planning: @planning }
+        render 'plannings/show', locals: { planning: @planning }
       end
       format.kmz do
         if params[:email]
@@ -78,7 +78,7 @@ class PlanningsController < ApplicationController
   end
 
   def new
-    @planning = current_user.customer.plannings.build()
+    @planning = current_user.customer.plannings.build
     @planning.vehicle_usage_set = current_user.customer.vehicle_usage_sets[0]
   end
 
@@ -283,10 +283,10 @@ class PlanningsController < ApplicationController
 
   # Use callbacks to share common setup or constraints between actions.
   def set_planning
-    if [:show, :edit, :optimize_each_routes].include?(action_name.to_sym)
-      @planning = Planning.includes(routes: {stops: :visit}).find(params[:id] || params[:planning_id])
+    @planning = if [:show, :edit, :optimize_each_routes].include?(action_name.to_sym)
+      current_user.customer.plannings.includes(routes: {stops: :visit}).find(params[:id] || params[:planning_id])
     else
-      @planning = Planning.find(params[:id] || params[:planning_id])
+      current_user.customer.plannings.find(params[:id] || params[:planning_id])
     end
   end
 
@@ -335,8 +335,10 @@ class PlanningsController < ApplicationController
       :ref_visit,
       :duration,
       @planning.customer.enable_orders ? :orders : :quantity,
-      :open,
-      :close,
+      :open1,
+      :close1,
+      :open2,
+      :close2,
       :tags_visit
     ]
   end
