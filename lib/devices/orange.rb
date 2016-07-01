@@ -15,68 +15,68 @@
 # along with Mapotempo. If not, see:
 # <http://www.gnu.org/licenses/agpl.html>
 #
-class Orange < DeviceBase
-  require "builder" # XML
-  require "addressable"
+require 'builder' # XML
+require 'addressable'
 
-  def test_list customer, params
+class Orange < DeviceBase
+  def test_list(customer, params)
     send_request list_operations(customer, { auth: params.slice(:user, :password) })
   end
 
-  def list_devices customer, params
+  def list_devices(customer, params)
     options = {}
     options.merge!(auth: params.slice(:user, :password)) if !params.blank?
     response = send_request get_vehicles(customer, options)
     if response.code.to_i == 200
       vehicle_infos = []
-      Nokogiri::XML(response.body).xpath("//vehicle").each_with_object({}) do |item, hash|
-        item.children.select(&:element?).map{|node| hash[node.name] = node.inner_html }
+      Nokogiri::XML(response.body).xpath('//vehicle').each_with_object({}) do |item, hash|
+        item.children.select(&:element?).map{ |node| hash[node.name] = node.inner_html }
         vehicle_infos << hash
       end
       vehicle_infos.map do |item|
-        { id: item["esht"], text: "%s - %s" % [ item["vdes"], item["vreg"] ] }
+        { id: item['esht'], text: '%s - %s' % [item['vdes'], item['vreg']] }
       end
     else
-      raise DeviceServiceError.new("Orange: %s" % [ I18n.t('errors.orange.list') ])
+      raise DeviceServiceError.new('Orange: %s' % [I18n.t('errors.orange.list')])
     end
   end
 
-  def send_route customer, route, options={}
+  def send_route(customer, route, _options = {})
     send_request send_xml_file(customer, route)
   end
 
-  def clear_route customer, route
+  def clear_route(customer, route)
     # Not supported by Garmin 590 -- Garmin Dezl and Nuvi only
-    send_request send_xml_file(customer, route, { delete: true })
+    send_request send_xml_file(customer, route, delete: true)
   end
 
-  def get_vehicles_pos customer
+  def get_vehicles_pos(customer)
     response = send_request(get_positions(customer))
     if response.code.to_i == 200
       vehicle_infos = []
-      Nokogiri::XML(response.body).xpath("//position").each_with_object({}) do |item, hash|
-        item.children.select(&:element?).map{|node| hash[node.name] = node.inner_html }
-        vehicle_infos << { orange_vehicle_id: hash["esht"], lat: hash["lat"], lng: hash["lon"], speed: hash["speed"], time: hash["hd"] + "+00:00", device_name: hash["vdes"] }
+      Nokogiri::XML(response.body).xpath('//position').each_with_object({}) do |item, hash|
+        item.children.select(&:element?).map{ |node| hash[node.name] = node.inner_html }
+        vehicle_infos << { orange_vehicle_id: hash['esht'], lat: hash['lat'], lng: hash['lon'], speed: hash['speed'], time: hash['hd'] + '+00:00', device_name: hash['vdes'] }
       end
       return vehicle_infos
     else
-      raise DeviceServiceError.new("Orange: %s" % [ I18n.t('errors.orange.get_vehicles_pos') ])
+      raise DeviceServiceError.new('Orange: %s' % [I18n.t('errors.orange.get_vehicles_pos')])
     end
   end
 
   private
 
-  def send_request response
+  def send_request(response)
     if response.code.to_i == 200
       return response
     elsif response.code.to_i == 401
-      raise DeviceServiceError.new("Orange: %s" % [ I18n.t("errors.orange.unauthorized") ])
+      raise DeviceServiceError.new('Orange: %s' % [I18n.t('errors.orange.unauthorized')])
     else
-      Rails.logger.info "OrangeService: %s %s" % [response.code, response.body]
+      Rails.logger.info 'OrangeService: %s %s' % [response.code, response.body]
     end
   end
 
-  def net_request customer, options
+  def net_request(customer, options)
     # Auth
     if options[:auth]
       user, password = options[:auth][:user], options[:auth][:password]
@@ -97,35 +97,37 @@ class Orange < DeviceBase
     http.request request
   end
 
-  def get_positions customer
-    net_request customer, { path: "/webservices/getpositions.php", params: { ext: "xml" } }
+  def get_positions(customer)
+    net_request customer, { path: '/webservices/getpositions.php', params: { ext: 'xml' } }
   end
 
-  def get_vehicles customer, options
-    net_request customer, options.merge(path: "/webservices/getvehicles.php", params: { ext: "xml" })
+  def get_vehicles(customer, options)
+    net_request customer, options.merge(path: '/webservices/getvehicles.php', params: { ext: 'xml' })
   end
 
-  def list_operations customer, options
-    net_request customer, options.merge(path: "/pnd/index.php", params: { ext: "xml", ref: "", vehid: "", typ: "mis", eqpid: "", dtdeb: Time.zone.now.beginning_of_day, dtfin: Time.zone.now.end_of_day })
+  def list_operations(customer, options)
+    net_request customer, options.merge(path: '/pnd/index.php', params: { ext: 'xml', ref: '', vehid: '', typ: 'mis', eqpid: '', dtdeb: Time.zone.now.beginning_of_day, dtfin: Time.zone.now.end_of_day })
   end
 
-  def send_xml_file customer, route, options={}
-    f = Tempfile.new Time.zone.now.to_i.to_s ; f.write to_xml(route, options) ; f.rewind
-    response = RestClient::Request.execute method: :post, user: customer.orange_user, password: customer.orange_password, url: api_url + "/pnd/index.php", payload: { multipart: true, file: f }
+  def send_xml_file(customer, route, options = {})
+    f = Tempfile.new Time.zone.now.to_i.to_s
+    f.write to_xml(route, options)
+    f.rewind
+    response = RestClient::Request.execute method: :post, user: customer.orange_user, password: customer.orange_password, url: api_url + '/pnd/index.php', payload: { multipart: true, file: f }
     f.unlink
-    return response
+    response
   end
 
-  def to_xml route, options={}
+  def to_xml(route, options = {})
     xml = ::Builder::XmlMarkup.new indent: 2
     xml.instruct!
     xml.tag! :ROOT do
       xml.tag! :version
-      xml.tag! :transmit, Time.zone.now.strftime("%d/%m/%Y %H:%M")
-      xml.tag! :zone, nil, type: "dest", ref: route.id, eqpid: route.vehicle_usage.vehicle.orange_id, drivername: nil, vehid: nil, badge: nil
-      xml.tag! :zone, nil, type: "mission", ref: route.id, lang: nil, title: "Mission #{route.id}", txt: route.planning.name,
-        prevmisdeb: p_time(route, route.start).strftime("%d/%m/%Y %H:%M"), prevmisfin: p_time(route, route.end).strftime("%d/%m/%Y %H:%M")
-      xml.tag! :zone, nil, type: "operation" do
+      xml.tag! :transmit, Time.zone.now.strftime('%d/%m/%Y %H:%M')
+      xml.tag! :zone, nil, type: 'dest', ref: route.id, eqpid: route.vehicle_usage.vehicle.orange_id, drivername: nil, vehid: nil, badge: nil
+      xml.tag! :zone, nil, type: 'mission', ref: route.id, lang: nil, title: "Mission #{route.id}", txt: route.planning.name,
+        prevmisdeb: p_time(route, route.start).strftime('%d/%m/%Y %H:%M'), prevmisfin: p_time(route, route.end).strftime('%d/%m/%Y %H:%M')
+      xml.tag! :zone, nil, type: 'operation' do
         route.stops.select(&:active?).select(&:position?).select(&:time?).sort_by(&:index).each do |stop|
           start_time = stop.time - 2.hours
           xml.tag! :operation, nil, options.merge(seq: stop.index, ad1: stop.street, ad2: nil, ad3: nil, ad_zip: stop.postalcode,
@@ -135,5 +137,4 @@ class Orange < DeviceBase
       end
     end
   end
-
 end

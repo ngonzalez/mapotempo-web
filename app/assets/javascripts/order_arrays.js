@@ -25,11 +25,11 @@ var order_arrays_form = function() {
     language: I18n.locale,
     zIndexOffset: 1000
   });
-}
+};
 
 var order_arrays_new = function(params) {
   order_arrays_form();
-}
+};
 
 var order_arrays_edit = function(params) {
   var order_array_id = params.order_array_id,
@@ -41,7 +41,7 @@ var order_arrays_edit = function(params) {
 
   var filter_text = function(exactText, normalizedValue, filter, index) {
     return !!String(normalizedValue).match(new RegExp(filter, 'i'));
-  }
+  };
 
   var formatNoMatches = I18n.t('web.select2.empty_result');
 
@@ -63,7 +63,7 @@ var order_arrays_edit = function(params) {
       });
     });
     return data_products;
-  }
+  };
 
   var set_fake_select2 = function(products, selector, shift) {
     fake_select2(selector, function(select) {
@@ -117,13 +117,13 @@ var order_arrays_edit = function(params) {
         });
       });
     });
-  }
+  };
 
   var build_fake_select2 = function(container, products, product_ids) {
     return container.html(SMT['order_arrays/fake_select2']({
       products: select2_build_options(products, product_ids)
     }));
-  }
+  };
 
   var build_total = function(e, table, shift) {
     var $table = $(table),
@@ -176,14 +176,14 @@ var order_arrays_edit = function(params) {
     });
 
     table_trigger_update();
-  }
+  };
 
   var table_trigger_update = function() {
     if (table_neeed_update) {
       table_neeed_update = false;
       $("#order_array table").trigger("update");
     }
-  }
+  };
 
   var products = {};
 
@@ -194,7 +194,7 @@ var order_arrays_edit = function(params) {
     });
     $.each(data.rows, function(i, row) {
       $.each(row.orders, function(i, order) {
-        order.products = select2_build_options(products, order.product_ids)
+        order.products = select2_build_options(products, order.product_ids);
       });
     });
     $.each(data.columns, function(i, column) {
@@ -211,7 +211,7 @@ var order_arrays_edit = function(params) {
     };
 
     var headers = {
-      0 : no_sorter
+      0: no_sorter
     };
     var filter_formatter = {
       0: false_formater
@@ -233,7 +233,9 @@ var order_arrays_edit = function(params) {
       filter_formatter[i + data.columns.length + 3 + shift] = false_formater;
     }
 
-    $("#order_array table").bind("tablesorter-initialized", function(e, table) { build_total(e, table, shift); }).tablesorter({
+    $("#order_array table").bind("tablesorter-initialized", function(e, table) {
+      build_total(e, table, shift);
+    }).tablesorter({
       textExtraction: function(node, table, cellIndex) {
         if (cellIndex >= 3 + shift && cellIndex < data.columns.length + 3 + shift) {
           return $.map($("[name$=\\[product_ids\\]\\[\\]] :selected", node), function(e, i) {
@@ -372,8 +374,11 @@ var order_arrays_edit = function(params) {
       var shift = $(e.target).data('index');
       $.ajax({
         type: 'PATCH',
-        url: '/api/0.1/plannings/' + planning_id + '/orders_array',
-        data: { order_array_id: order_array_id, shift: shift },
+        url: '/api/0.1/plannings/' + planning_id + '/order_array',
+        data: {
+          order_array_id: order_array_id,
+          shift: shift
+        },
         beforeSend: beforeSendWaiting,
         complete: completeWaiting,
         error: ajaxError,
@@ -387,7 +392,9 @@ var order_arrays_edit = function(params) {
   var dialog_loading = bootstrap_dialog({
     title: I18n.t('order_arrays.edit.dialog.loading.title'),
     icon: 'fa-check-square-o',
-    message: SMT['modals/default_with_progress']({ msg: I18n.t('order_arrays.edit.dialog.loading.in_progress') })
+    message: SMT['modals/default_with_progress']({
+      msg: I18n.t('order_arrays.edit.dialog.loading.in_progress')
+    })
   });
 
   dialog_loading.modal(modal_options());
@@ -402,7 +409,7 @@ var order_arrays_edit = function(params) {
     },
     error: ajaxError
   });
-}
+};
 
 Paloma.controller('OrderArrays', {
   new: function() {

@@ -15,7 +15,6 @@
 // along with Mapotempo. If not, see:
 // <http://www.gnu.org/licenses/agpl.html>
 //
-
 var vehicle_usages_form = function(params) {
   /* Speed Multiplier */
   $('form.number-to-percentage').submit(function(e) {
@@ -37,7 +36,7 @@ var vehicle_usages_form = function(params) {
 
   /* API: Devices */
   devices_observe_vehicle(params);
-}
+};
 
 Paloma.controller('VehicleUsages', {
   new: function() {

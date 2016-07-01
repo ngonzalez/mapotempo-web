@@ -15,12 +15,11 @@
 # along with Mapotempo. If not, see:
 # <http://www.gnu.org/licenses/agpl.html>
 #
+require Rails.root.join('lib/devices/device_helpers')
+include Devices::Helpers
+
 class V01::Api < Grape::API
   helpers do
-
-    require Rails.root.join("lib/devices/device_helpers")
-    include Devices::Helpers
-
     def session
       env[Rack::Session::Abstract::ENV_SESSION_KEY]
     end
@@ -29,7 +28,7 @@ class V01::Api < Grape::API
       env && env['warden']
     end
 
-    def current_customer customer_id=nil
+    def current_customer(customer_id = nil)
       @current_user ||= warden.authenticated? && warden.user
       @current_user ||= params['api_key'] && User.find_by(api_key: params['api_key'])
       @current_customer ||= @current_user && (@current_user.admin? && customer_id ? @current_user.reseller.customers.find(customer_id || params[:id]) : @current_user.customer)
@@ -108,6 +107,7 @@ class V01::Api < Grape::API
   mount V01::Destinations
   mount V01::Layers
   mount V01::Orders
+  mount V01::OrderArrays
   mount V01::Plannings
   mount V01::PlanningsGet
   mount V01::Profiles

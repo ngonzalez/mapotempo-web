@@ -29,7 +29,7 @@ class Route < ActiveRecord::Base
 
   after_initialize :assign_defaults, if: 'new_record?'
 
-  scope :for_customer, lambda{|customer| where(planning_id: customer.planning_ids) }
+  scope :for_customer, lambda{ |customer| where(planning_id: customer.planning_ids) }
 
   include RefSanitizer
 
@@ -80,7 +80,7 @@ class Route < ActiveRecord::Base
     self.emission = 0
     self.start = self.end = nil
     last_lat, last_lng = nil, nil
-    if vehicle_usage && stops.size > 0
+    if vehicle_usage && !stops.empty?
       service_time_start = service_time_start_value
       service_time_end = service_time_end_value
       self.end = self.start = departure || vehicle_usage.default_open
@@ -112,7 +112,7 @@ class Route < ActiveRecord::Base
 
       # Collect route legs
       segments = stops_sort.select{ |stop|
-        stop.active && (stop.position? || (stop.is_a?(StopRest) && stop.open && stop.close && stop.duration))
+        stop.active && (stop.position? || (stop.is_a?(StopRest) && ((stop.open1 && stop.close1) || (stop.open2 && stop.close2)) && stop.duration))
       }.collect{ |stop|
         if stop.position? && !last_lat.nil? && !last_lng.nil?
           ret = [last_lat, last_lng, stop.lat, stop.lng]
@@ -140,15 +140,16 @@ class Route < ActiveRecord::Base
             (ts && !ts.empty? && ts.shift) || [nil, nil, nil]
           end
         }
-      rescue RouterError => e
+      rescue RouterError
         if !ignore_errors
           raise
         end
       end
 
       # Recompute Stops
+      stops_time_windows = {}
       stops_sort.each{ |stop|
-        if stop.active && (stop.position? || (stop.is_a?(StopRest) && stop.open && stop.close && stop.duration))
+        if stop.active && (stop.position? || (stop.is_a?(StopRest) && ((stop.open1 && stop.close1) || (stop.open2 && stop.close2)) && stop.duration))
           stop.distance, stop.drive_time, stop.trace = traces.shift
           if stop.drive_time
             stops_time[stop] = stop.drive_time
@@ -160,13 +161,15 @@ class Route < ActiveRecord::Base
           end
 
           if stop.time
-            if stop.open && stop.time < stop.open
-              stop.wait_time = stop.open - stop.time
-              stop.time = stop.open
+            open, close, late_wait = stop.best_open_close(stop.time)
+            stops_time_windows[stop] = [open, close]
+            if open && stop.time < open
+              stop.wait_time = open - stop.time
+              stop.time = open
             else
               stop.wait_time = nil
             end
-            stop.out_of_window = (stop.open && stop.time < stop.open) || (stop.close && stop.time > stop.close)
+            stop.out_of_window = late_wait && late_wait > 0
 
             if stop.distance
               self.distance += stop.distance
@@ -201,16 +204,16 @@ class Route < ActiveRecord::Base
       end
 
       self.stop_trace = trace
-      self.stop_out_of_drive_time = self.end > (Time.zone.local(2000, 1, 1, 0, 0) + (vehicle_usage.default_close - Time.utc(2000, 1, 1, 0, 0)))
+      self.stop_out_of_drive_time = self.end > vehicle_usage.default_close
 
       self.emission = vehicle_usage.vehicle.emission.nil? || vehicle_usage.vehicle.consumption.nil? ? nil : self.distance / 1000 * vehicle_usage.vehicle.emission * vehicle_usage.vehicle.consumption / 100
 
-      [stops_sort, stops_time]
+      [stops_sort, stops_time, stops_time_windows]
     end
   end
 
   def compute(options = {})
-    stops_sort, stops_time = plan(nil, options[:ignore_errors])
+    stops_sort, stops_time, stops_time_windows = plan(nil, options[:ignore_errors])
 
     if stops_sort
       # Try to minimize waiting time by a later begin
@@ -219,11 +222,12 @@ class Route < ActiveRecord::Base
       (time -= vehicle_usage.default_service_time_end - Time.utc(2000, 1, 1, 0, 0)) if vehicle_usage.default_service_time_end
       stops_sort.reverse_each{ |stop|
         if stop.active && (stop.position? || stop.is_a?(StopRest))
-          if stop.time && (stop.out_of_window || (stop.close && time > stop.close))
+          open, close = stops_time_windows[stop]
+          if stop.time && (stop.out_of_window || (close && time > close))
             time = stop.time
           else
             # Latest departure time
-            time = [time, stop.close].min if stop.close
+            time = [time, close].min if close
 
             # New arrival stop time
             time -= stop.duration
@@ -297,7 +301,7 @@ class Route < ActiveRecord::Base
 
   def remove_visit(visit)
     stops.each{ |stop|
-      if(stop.is_a?(StopVisit) && stop.visit == visit)
+      if stop.is_a?(StopVisit) && stop.visit == visit
         remove_stop(stop)
       end
     }
@@ -344,8 +348,12 @@ class Route < ActiveRecord::Base
 
   def sum_out_of_window
     stops.to_a.sum{ |stop|
-      (stop.time && stop.open && stop.time < stop.open ? stop.open - stop.time : 0) +
-      (stop.time && stop.close && stop.time > stop.close ? stop.time - stop.close : 0)
+      if stop.time
+        open, close = stop.best_open_close(stop.time)
+        (open && stop.time < open ? open - stop.time : 0) + (close && stop.time > close ? stop.time - close : 0)
+      else
+        0
+      end
     }
   end
 
@@ -366,13 +374,19 @@ class Route < ActiveRecord::Base
     amalgamate_stops_same_position(stops_on) { |positions|
 
       services = positions.collect{ |position|
-        open, close, duration = position[2..4]
-        open = open ? Integer(open - vehicle_usage.default_open) : nil
-        close = close ? Integer(close - vehicle_usage.default_open) : nil
-        if open && close && open > close
-          close = open
+        open1, close1, open2, close2, duration = position[2..6]
+        open1 = open1 ? Integer(open1 - vehicle_usage.default_open) : nil
+        close1 = close1 ? Integer(close1 - vehicle_usage.default_open) : nil
+        if open1 && close1 && open1 > close1
+          close1 = open1
         end
-        {start: open, end: close, duration: duration}
+
+        open2 = open2 ? Integer(open2 - vehicle_usage.default_open) : nil
+        close2 = close2 ? Integer(close2 - vehicle_usage.default_open) : nil
+        if open2 && close2 && open2 > close2
+          close2 = open2
+        end
+        {start1: open1, end1: close1, start2: open2, end2: close2, duration: duration}
       }
 
       position_start = (vehicle_usage.default_store_start && !vehicle_usage.default_store_start.lat.nil? && !vehicle_usage.default_store_start.lng.nil?) ? [vehicle_usage.default_store_start.lat, vehicle_usage.default_store_start.lng] : [nil, nil]
@@ -463,7 +477,7 @@ class Route < ActiveRecord::Base
   end
 
   def changed?
-    @stops_updated || super || stops.any?{ |stop| stop.changed? }
+    @stops_updated || super || stops.any?(&:changed?)
   end
 
   def to_s
@@ -490,20 +504,20 @@ class Route < ActiveRecord::Base
   end
 
   def stop_index_validation
-    if vehicle_usage_id && stops.length > 0 && stops.collect(&:index).sum != (stops.length * (stops.length + 1)) / 2
+    if vehicle_usage_id && !stops.empty? && stops.collect(&:index).sum != (stops.length * (stops.length + 1)) / 2
       errors.add(:stops, :bad_index)
     end
   end
 
   def amalgamate_stops_same_position(stops)
     tws = stops.find{ |stop|
-      stop.is_a?(StopRest) || stop.open || stop.close
+      stop.is_a?(StopRest) || stop.open1 || stop.close1 || stop.open2 || stop.close2
     }
 
     if tws
       # Can't reduce cause of time windows
       positions_uniq = stops.collect{ |stop|
-        [stop.lat, stop.lng, stop.open, stop.close, stop.duration]
+        [stop.lat, stop.lng, stop.open1, stop.close1, stop.open2, stop.close2, stop.duration]
       }
 
       yield(positions_uniq)
@@ -516,14 +530,14 @@ class Route < ActiveRecord::Base
       }
 
       positions_uniq = stock.collect{ |k, v|
-        k + [nil, nil, v.sum{ |vs| vs[0].duration }]
+        k + [nil, nil, nil, nil, v.sum{ |vs| vs[0].duration }]
       }
 
       optim_uniq = yield(positions_uniq)
 
-      optim_uniq.collect{ |ou|
+      optim_uniq.flat_map{ |ou|
         stock[positions_uniq[ou][0..1]]
-      }.flatten(1).collect{ |pa|
+      }.collect{ |pa|
         pa[1]
       }
     end
@@ -531,7 +545,7 @@ class Route < ActiveRecord::Base
 
   def unnil_positions(positions, tws)
     # start/stop are always in input positions
-    not_nil_position_index = positions[1..-2].each_with_index.group_by{ |position, index| !position[0].nil? && !position[1].nil? }
+    not_nil_position_index = positions[1..-2].each_with_index.group_by{ |position, _index| !position[0].nil? && !position[1].nil? }
 
     if not_nil_position_index.key?(true)
       not_nil_position, not_nil_tws, not_nil_index = not_nil_position_index[true].collect{ |position, index| [position, tws[index], index + 1] }.transpose
@@ -539,7 +553,7 @@ class Route < ActiveRecord::Base
       not_nil_position = not_nil_tws = not_nil_index = []
     end
     if not_nil_position_index.key?(false)
-      nil_tws, nil_index = not_nil_position_index[false].collect{ |position, index| [tws[index], index  + 1] }.transpose
+      nil_tws, nil_index = not_nil_position_index[false].collect{ |_position, index| [tws[index], index + 1] }.transpose
     else
       nil_tws = nil_index = []
     end

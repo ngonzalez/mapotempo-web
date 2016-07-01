@@ -36,7 +36,7 @@ class RoutesController < ApplicationController
       end
       format.kml do
         response.headers['Content-Disposition'] = 'attachment; filename="' + filename + '.kml"'
-        render "routes/show", locals: { route: @route }
+        render 'routes/show', locals: { route: @route }
       end
       format.kmz do
         if params[:email]
@@ -82,7 +82,7 @@ class RoutesController < ApplicationController
 
   # Use callbacks to share common setup or constraints between actions.
   def set_route
-    @route = Route.find(params[:id])
+    @route = Route.for_customer(current_user.customer).find params[:id]
   end
 
   # Never trust parameters from the scary internet, only allow the white list through.
@@ -125,8 +125,10 @@ class RoutesController < ApplicationController
       :ref_visit,
       :duration,
       @route.planning.customer.enable_orders ? :orders : :quantity,
-      :open,
-      :close,
+      :open1,
+      :close1,
+      :open2,
+      :close2,
       :tags_visit
     ]
   end

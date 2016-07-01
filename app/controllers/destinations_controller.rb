@@ -63,7 +63,7 @@ class DestinationsController < ApplicationController
       if @destination.save && current_user.customer.save
         format.html { redirect_to link_back || edit_destination_path(@destination), notice: t('activerecord.successful.messages.created', model: @destination.class.model_name.human) }
       else
-        flash.now[:error] = @destination.customer.errors.full_messages if @destination.customer.errors.size > 0
+        flash.now[:error] = @destination.customer.errors.full_messages if !@destination.customer.errors.empty?
         format.html { render action: 'new' }
       end
     end
@@ -75,7 +75,7 @@ class DestinationsController < ApplicationController
         if @destination.update(destination_params) && @destination.customer.save
           format.html { redirect_to link_back || edit_destination_path(@destination), notice: t('activerecord.successful.messages.updated', model: @destination.class.model_name.human) }
         else
-          flash.now[:error] = @destination.customer.errors.full_messages if @destination.customer.errors.size > 0
+          flash.now[:error] = @destination.customer.errors.full_messages if !@destination.customer.errors.empty?
           format.html { render action: 'edit' }
         end
       end
@@ -127,18 +127,16 @@ class DestinationsController < ApplicationController
   end
 
   def upload_tomtom
-    begin
-      @import_tomtom = ImportTomtom.new import_tomtom_params.merge(importer: ImporterDestinations.new(current_user.customer), customer: current_user.customer)
-      if current_user.customer.tomtom? && @import_tomtom.valid? && @import_tomtom.import
-        flash[:warning] = @import_tomtom.warnings.join(', ') if @import_tomtom.warnings.any?
-        redirect_to destinations_path, notice: t(".success")
-      else
-        @import_csv = ImportCsv.new
-        render action: :import
-      end
-    rescue DeviceServiceError => e
-      redirect_to destination_import_path, alert: e.message
+    @import_tomtom = ImportTomtom.new import_tomtom_params.merge(importer: ImporterDestinations.new(current_user.customer), customer: current_user.customer)
+    if current_user.customer.tomtom? && @import_tomtom.valid? && @import_tomtom.import
+      flash[:warning] = @import_tomtom.warnings.join(', ') if @import_tomtom.warnings.any?
+      redirect_to destinations_path, notice: t('.success')
+    else
+      @import_csv = ImportCsv.new
+      render action: :import
     end
+  rescue DeviceServiceError => e
+    redirect_to destination_import_path, alert: e.message
   end
 
   def clear
@@ -154,7 +152,7 @@ class DestinationsController < ApplicationController
 
   # Use callbacks to share common setup or constraints between actions.
   def set_destination
-    @destination = Destination.find(params[:id] || params[:destination_id])
+    @destination = current_user.customer.destinations.find params[:id] || params[:destination_id]
   end
 
   def warnings
@@ -163,7 +161,7 @@ class DestinationsController < ApplicationController
 
   # Never trust parameters from the scary internet, only allow the white list through.
   def destination_params
-    params.require(:destination).permit(:ref, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :quantity, :take_over, :open, :close, :phone_number, :comment, :geocoding_accuracy, :geocoding_level, tag_ids: [], visits_attributes: [:id, :ref, :quantity, :take_over, :open, :close, :_destroy, tag_ids: []])
+    params.require(:destination).permit(:ref, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :quantity, :take_over, :open, :close, :phone_number, :comment, :geocoding_accuracy, :geocoding_level, tag_ids: [], visits_attributes: [:id, :ref, :quantity, :take_over, :open1, :close1, :open2, :close2, :_destroy, tag_ids: []])
   end
 
   # Never trust parameters from the scary internet, only allow the white list through.

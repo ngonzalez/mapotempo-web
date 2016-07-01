@@ -24,8 +24,10 @@ class Visit < ActiveRecord::Base
 
   nilify_blanks
   validates :destination, presence: true
-  validates_time :open, if: :open
-  validates_time :close, presence: false, on_or_after: :open, if: :close
+  validates_time :open1, if: :open1
+  validates_time :close1, presence: false, on_or_after: :open1, if: :close1
+  validates_time :open2, if: :open2
+  validates_time :close2, presence: false, on_or_after: :open2, if: :close2
 
   before_save :update_tags, :create_orders
   before_update :update_out_of_date
@@ -36,7 +38,7 @@ class Visit < ActiveRecord::Base
     exclude_association :stop_visits
     exclude_association :orders
 
-    customize(lambda { |original, copy|
+    customize(lambda { |_original, copy|
       def copy.update_tags; end
       def copy.create_orders; end
       def copy.update_out_of_date; end
@@ -74,7 +76,7 @@ class Visit < ActiveRecord::Base
   private
 
   def update_out_of_date
-    if open_changed? || close_changed? || quantity_changed? || take_over_changed?
+    if open1_changed? || close1_changed? || open2_changed? || close2_changed? || quantity_changed? || take_over_changed?
       out_of_date
     end
   end
@@ -93,10 +95,8 @@ class Visit < ActiveRecord::Base
           if (planning.tags.to_a & (tags.to_a | destination.tags.to_a)) != planning.tags.to_a
             planning.visit_remove(self)
           end
-        else
-          if (planning.tags.to_a & (tags.to_a | destination.tags.to_a)) == planning.tags.to_a
-            planning.visit_add(self)
-          end
+        elsif (planning.tags.to_a & (tags.to_a | destination.tags.to_a)) == planning.tags.to_a
+          planning.visit_add(self)
         end
       }
     end

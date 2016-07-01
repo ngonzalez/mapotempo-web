@@ -21,20 +21,25 @@ var zonings_edit = function(params) {
     planning_id = params.planning_id,
     vehicles_array = params.vehicles_array,
     vehicles_map = params.vehicles_map,
-    url_click2call =  params.url_click2call,
+    url_click2call = params.url_click2call,
     show_capacity = params.show_capacity;
 
   // sidebar has to be created before map
-  var sidebar = L.control.sidebar('edit-zoning', {position: 'right'})
+  var sidebar = L.control.sidebar('edit-zoning', {
+    position: 'right'
+  })
   sidebar.open('zoning');
 
   var map = mapInitialize(params);
-  L.control.attribution({prefix: false, position: 'bottomleft'}).addTo(map);
+  L.control.attribution({
+    prefix: false,
+    position: 'bottomleft'
+  }).addTo(map);
   L.control.scale({
     imperial: false
   }).addTo(map);
 
-  var fitBounds = (window.location.hash) ? false : true;
+  var fitBounds = window.location.hash ? false : true;
   new L.Hash(map);
 
   sidebar.addTo(map);
@@ -111,7 +116,7 @@ var zonings_edit = function(params) {
       $('.quantity_number', ele).html(quantity);
       $('.stop').show(); // Display all
     }
-  }
+  };
 
   var setColor = function(polygon, vehicle_id, speed_multiplicator) {
     polygon.setStyle((speed_multiplicator === 0) ? {
@@ -121,14 +126,18 @@ var zonings_edit = function(params) {
       dashArray: '10, 10',
       fillPattern: stripes
     } : {
-      color: (vehicle_id && vehicles_map[vehicle_id] ? vehicles_map[vehicle_id].color : '#707070'),
+      color: ((vehicle_id && vehicles_map[vehicle_id]) ? vehicles_map[vehicle_id].color : '#707070'),
       fillColor: null,
       weight: 2,
       dashArray: 'none',
       fillPattern: null
     });
-  }
-  var stripes = new L.StripePattern({color: '#FF0000', angle: -45}); stripes.addTo(map);
+  };
+  var stripes = new L.StripePattern({
+    color: '#FF0000',
+    angle: -45
+  });
+  stripes.addTo(map);
 
   var template = function(state) {
     if (state.id && vehicles_map[state.id]) {
@@ -136,7 +145,7 @@ var zonings_edit = function(params) {
     } else {
       return I18n.t('web.form.empty_entry');
     }
-  }
+  };
 
   var router_avoid_zones = $.grep(vehicles_array, function(elem) {
     return elem.router_avoid_zones;
@@ -152,24 +161,30 @@ var zonings_edit = function(params) {
           opacity: 0.9,
           weight: (zone.speed_multiplicator === 0) ? 5 : 3
         });
-        if (zone.name) labelMarker = L.marker(that.getBounds().getCenter(), {
-          icon: L.divIcon({
-            className: 'label',
-            html: zone.name,
-            iconSize: [100, 40]
-          })
-        }).addTo(labelLayer);
+        if (zone.name) {
+          labelMarker = L.marker(that.getBounds().getCenter(), {
+            icon: L.divIcon({
+              className: 'label',
+              html: zone.name,
+              iconSize: [100, 40]
+            })
+          }).addTo(labelLayer);
+        }
       });
       this.on('mouseout', function(e) {
         that.setStyle({
           opacity: 0.5,
           weight: (zone.speed_multiplicator === 0) ? 5 : 2
         });
-        if (labelMarker) labelLayer.removeLayer(labelMarker);
-        labelMarker = null
+        if (labelMarker) {
+          labelLayer.removeLayer(labelMarker);
+        }
+        labelMarker = null;
       });
       this.on('click', function(e) {
-        if (!zone.id) return;
+        if (!zone.id) {
+          return;
+        }
         var z = $('#zones input[value=' + zone.id + ']').closest('.zone');
         z.css('box-shadow', '#4D90FE 0px 0px 5px');
         setTimeout(function() {
@@ -204,12 +219,14 @@ var zonings_edit = function(params) {
         name: val.name
       };
     });
-    if (zone.vehicle_id && $.inArray(true, $.map(zone.vehicles, function(val, i) {  return val.selected; })) < 0) {
+    if (zone.vehicle_id && $.inArray(true, $.map(zone.vehicles, function(val, i) {
+        return val.selected;
+      })) < 0) {
       zone.vehicles.unshift({
         id: vehicles_map[zone.vehicle_id].id,
         selected: true,
         name: vehicles_map[zone.vehicle_id].name
-      })
+      });
     }
     zone.avoid_zone = zone.speed_multiplicator == 0;
     zone.router_avoid_zones = zone.vehicle_id && vehicles_map[zone.vehicle_id] ? vehicles_map[zone.vehicle_id].router_avoid_zones : router_avoid_zones;
@@ -266,7 +283,9 @@ var zonings_edit = function(params) {
         $('.avoid-zone', $(this).closest('.zone')).addClass('disabled');
       } else {
         $('input[name=zoning\\[zones_attributes\\]\\[\\]\\[avoid_zone\\]]', $(this).closest('.zone')).prop('disabled', false);
-        $('.avoid-zone', $(this).closest('.zone')).css({display: 'block'});
+        $('.avoid-zone', $(this).closest('.zone')).css({
+          display: 'block'
+        });
         $('.avoid-zone', $(this).closest('.zone')).removeClass('disabled');
       }
 
@@ -288,19 +307,19 @@ var zonings_edit = function(params) {
     $('.delete', ele).click(function(event) {
       deleteZone(geom);
     });
-  }
+  };
 
   var deleteZone = function(geom) {
     featureGroup.removeLayer(geom);
     var ele = zone_map[geom._leaflet_id].ele;
     ele.hide();
     ele.append('<input type="hidden" name="zoning[zones_attributes][][_destroy]" value="1"/>');
-  }
+  };
 
   var updateZone = function(geom) {
     $('input[name=zoning\\[zones_attributes\\]\\[\\]\\[polygon\\]]', zone_map[geom._leaflet_id].ele).attr('value', JSON.stringify(geom.toGeoJSON()));
     count_point_in_polygon(geom._leaflet_id, zone_map[geom._leaflet_id].ele);
-  }
+  };
 
   var planning = undefined;
 
@@ -331,7 +350,7 @@ var zonings_edit = function(params) {
         });
       }
     }
-  }
+  };
 
   var displayDestinations = function(route) {
     $.each(route.stops, function(index, stop) {
@@ -352,14 +371,14 @@ var zonings_edit = function(params) {
           m.openPopup();
         }).on('mouseout', function(e) {
           m.closePopup();
-        }).on('popupopen', function(e){
-          $('.phone_number', e.popup._container).click(function(e){
+        }).on('popupopen', function(e) {
+          $('.phone_number', e.popup._container).click(function(e) {
             phone_number_call(e.currentTarget.innerHTML, url_click2call, e.target);
           });
         });
       }
     });
-  }
+  };
 
   var displayZoningFirstTime = function(data) {
     stores_marker.clearLayers();
@@ -396,9 +415,9 @@ var zonings_edit = function(params) {
     }
 
     displayZoning(data);
-  }
+  };
 
-  $('form').submit(function (e) {
+  $('form').submit(function(e) {
     var empty = false;
     $.each($('select').serializeArray(), function(i, e) {
       if (!e.value) {
@@ -420,30 +439,31 @@ var zonings_edit = function(params) {
           beforeSend: beforeSendWaiting,
           success: function(data) {
             destLoaded = true;
-            displayDestinations({stops: data.destinations});
+            displayDestinations({
+              stops: data.destinations
+            });
           },
           complete: completeAjaxMap,
           error: ajaxError
         });
-      }
-      else
+      } else {
         map.addLayer(markersLayers);
+      }
       $('.automatic.disabled').each(function() {
-        $(this).removeClass('disabled')
+        $(this).removeClass('disabled');
       });
       $('#generate').css('display', 'inline-block');
-    }
-    else {
+    } else {
       map.removeLayer(markersLayers);
       $('.automatic').each(function() {
-        $(this).addClass('disabled')
+        $(this).addClass('disabled');
       });
     }
   });
 
   var nbZones = undefined;
 
-  $('.automatic').click(function () {
+  $('.automatic').click(function() {
     if (!$(this).hasClass('disabled')) {
       if (nbZones && !confirm(I18n.t('zonings.edit.generate_confirm'))) {
         return false;
@@ -459,7 +479,7 @@ var zonings_edit = function(params) {
     }
   });
 
-  $('#from_planning').click(function () {
+  $('#from_planning').click(function() {
     if (nbZones && !confirm(I18n.t('zonings.edit.generate_confirm'))) {
       return false;
     }
@@ -478,7 +498,7 @@ var zonings_edit = function(params) {
     spinnerImage: ''
   });
 
-  $('#isochrone').click(function () {
+  $('#isochrone').click(function() {
     if (nbZones && !confirm(I18n.t('zonings.edit.generate_confirm'))) {
       return false;
     }
@@ -517,7 +537,7 @@ var zonings_edit = function(params) {
     });
   });
 
-  $('#isodistance').click(function () {
+  $('#isodistance').click(function() {
     if (nbZones && !confirm(I18n.t('zonings.edit.generate_confirm'))) {
       return false;
     }
@@ -548,7 +568,7 @@ var zonings_edit = function(params) {
     complete: completeWaiting,
     error: ajaxError
   });
-}
+};
 
 Paloma.controller('Zonings', {
   edit: function() {
