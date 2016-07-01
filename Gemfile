@@ -87,7 +87,7 @@ gem 'rails-i18n'
 gem 'http_accept_language'
 gem 'execjs'
 gem 'therubyracer'
-gem 'devise'
+gem 'devise', '< 4' # FIXME wait for ruby 2.1
 gem 'devise-i18n'
 gem 'devise-i18n-views'
 gem 'cancancan', '=1.11.0' # FIXME wait for ruby 2.0
@@ -111,7 +111,7 @@ gem 'rails_12factor', group: :production
 
 gem 'leaflet-rails'
 gem 'leaflet-markercluster-rails'
-gem 'sprockets', '~> 2' # FIXME wait for https://github.com/rails/sprockets/issues/104
+gem 'sprockets'
 gem 'leaflet-draw-rails', github: 'frodrigo/leaflet-draw-rails' # FIXME wait for https://github.com/zentrification/leaflet-draw-rails/pull/1
 gem 'leaflet_numbered_markers-rails', github: 'frodrigo/leaflet_numbered_markers-rails'
 gem 'leaflet-control-geocoder-rails', github: 'frodrigo/leaflet-control-geocoder-rails'

@@ -26,10 +26,25 @@ class V01::Destinations < Grape::API
       if p[:visits]
         p[:visits_attributes] = p[:visits]
       end
-      p.permit(:ref, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :comment, :phone_number, :geocoding_accuracy, :geocoding_level, tag_ids: [], visits_attributes: [:id, :ref, :quantity, :take_over, :open, :close, tag_ids: []])
+      p = p.permit(:ref, :name, :street, :detail, :postalcode, :city, :country, :lat, :lng, :comment, :phone_number, :geocoding_accuracy, :geocoding_level, tag_ids: [], visits_attributes: [:id, :ref, :quantity, :take_over, :open, :close, :open1, :close1, :open2, :close2, tag_ids: []])
+
+      # Deals with deprecated open and close
+      p[:visits_attributes] && p[:visits_attributes].collect!{ |v|
+        if !v[:open].nil?
+          v[:open1] = v[:open]
+        end
+        if !p[:close].nil?
+          v[:close1] = v[:close]
+        end
+        v.delete(:open)
+        v.delete(:close)
+        v
+      }
+
+      p
     end
 
-    ID_DESC = 'Id or the ref field value, then use "ref:[value]".'
+    ID_DESC = 'Id or the ref field value, then use "ref:[value]".'.freeze
   end
 
   resource :destinations do
@@ -94,7 +109,7 @@ class V01::Destinations < Grape::API
           params[:planning][:vehicle_usage_set] = current_customer.vehicle_usage_sets.find(params[:planning][:vehicle_usage_set_id])
         end
         params[:planning].delete(:vehicle_usage_set_id)
-        if params[:planning][:zoning_ids] && params[:planning][:zoning_ids].size > 0
+        if params[:planning][:zoning_ids] && !params[:planning][:zoning_ids].empty?
           params[:planning][:zonings] = current_customer.zonings.find(params[:planning][:zoning_ids])
         end
         params[:planning].delete(:zoning_ids)
@@ -103,7 +118,7 @@ class V01::Destinations < Grape::API
         ImportJson.new(importer: ImporterDestinations.new(current_customer, params[:planning]), replace: params[:replace], json: params[:destinations])
       elsif params[:remote]
         case params[:remote]
-          when 'tomtom' then ImportTomtom.new(importer: ImporterDestinations.new(current_customer, params[:planning]), customer: current_customer, replace: params[:replace])
+        when 'tomtom' then ImportTomtom.new(importer: ImporterDestinations.new(current_customer, params[:planning]), customer: current_customer, replace: params[:replace])
         end
       else
         ImportCsv.new(importer: ImporterDestinations.new(current_customer, params[:planning]), replace: params[:replace], file: params[:file])
@@ -111,8 +126,8 @@ class V01::Destinations < Grape::API
 
       if import && import.valid? && (destinations = import.import(true))
         case params[:remote]
-          when 'tomtom' then status 202
-          else present destinations, with: V01::Entities::Destination
+        when 'tomtom' then status 202
+        else present destinations, with: V01::Entities::Destination
         end
       else
         error!({error: import && import.errors.full_messages}, 422)
