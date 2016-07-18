@@ -32,4 +32,7 @@
   <% if @planning.new_record? %>
     <%= zoning_select f, @planning, t('plannings.edit.zonings.label') %>
   <% end %>
+  <%= f.actions do %>
+    <%= f.submit %>
+  <% end %>
 <% end %>
