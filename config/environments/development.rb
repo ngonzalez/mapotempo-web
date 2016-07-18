@@ -60,7 +60,7 @@ Rails.application.configure do
     'http://optim.mapotempo.com:1791/0.1',
     'demo'
   )
-  config.optimize_time = 30
+  config.optimize_time = nil
   config.optimize_cluster_size = 0
   config.optimize_soft_upper_bound = 3
 
@@ -95,7 +95,7 @@ Rails.application.configure do
     nil
   )
 
-  config.devices.alyacom.api_url = 'http://preprod.intra.alyacom.fr/ws'
+  config.devices.alyacom.api_url = 'http://partners.alyacom.fr/ws'
   config.devices.masternaut.api_url = 'http://ws.webservices.masternaut.fr/MasterWS/services'
   config.devices.masternaut.api_key = nil
   config.devices.orange.api_url = 'https://m2m-services.ft-dm.com'
