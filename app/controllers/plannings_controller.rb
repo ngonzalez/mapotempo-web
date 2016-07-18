@@ -21,7 +21,8 @@ require 'zip'
 
 class PlanningsController < ApplicationController
   load_and_authorize_resource
-  before_action :set_planning, only: [:show, :edit, :update, :destroy, :move, :refresh, :switch, :automatic_insert, :update_stop, :optimize_each_routes, :optimize_route, :active, :duplicate, :reverse_order]
+  before_action :set_planning, only: [:show, :edit, :update, :destroy, :move, :refresh, :switch, :automatic_insert, :update_stop,
+    :optimize_each_routes, :optimize_route, :active, :duplicate, :reverse_order, :apply_zonings]
 
   include PlanningExport
 
@@ -187,24 +188,26 @@ class PlanningsController < ApplicationController
       route_ids = stops.any? ? [stops[0].route_id] : []
     end
 
-    success = true
-    stops.each do |stop|
-      route = @planning.automatic_insert stop
-      if route
-        route_ids << route.id if route_ids.exclude?(route.id)
-      else
-        success = false
-        break
-      end
-    end
-
-    respond_to do |format|
-      format.json do
-        if success && @planning.save && @planning.reload
-          @routes = @planning.routes.select{ |r| route_ids.include? r.id }
-          render action: :show
+    Planning.transaction do
+      success = true
+      stops.each do |stop|
+        route = @planning.automatic_insert stop
+        if route
+          route_ids << route.id if route_ids.exclude?(route.id)
         else
-          render nothing: true, status: :unprocessable_entity
+          success = false
+          break
+        end
+      end
+
+      respond_to do |format|
+        format.json do
+          if success && @planning.save! && @planning.reload
+            @routes = @planning.routes.select{ |r| route_ids.include? r.id }
+            render action: :show
+          else
+            render nothing: true, status: :unprocessable_entity
+          end
         end
       end
     end
@@ -275,6 +278,25 @@ class PlanningsController < ApplicationController
         format.json { render action: 'show', location: @planning }
       else
         format.json { render json: @planning.errors, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  def apply_zonings
+    @planning.zonings = params[:planning] && planning_params[:zoning_ids] ? current_user.customer.zonings.find(planning_params[:zoning_ids]) : []
+    @planning.zoning_out_of_date = true
+    @planning.compute
+    if @planning.save && @planning.reload
+      respond_to do |format|
+        format.json do
+          render action: :show
+        end
+      end
+    else
+      respond_to do |format|
+        format.json do
+          render json: @planning.errors, status: :unprocessable_entity
+        end
       end
     end
   end
