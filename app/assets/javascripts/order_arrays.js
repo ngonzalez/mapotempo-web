@@ -410,7 +410,18 @@ var order_arrays_edit = function(params) {
   });
 };
 
+var order_arrays_index = function() {
+  $('.fa-check').click(function(e) {
+    $.each($('input[type=checkbox]'), function(i, element) {
+      $(element).prop('checked', !$(element).is(':checked'))
+    });
+  });
+}
+
 Paloma.controller('OrderArrays', {
+  index: function() {
+    order_arrays_index();
+  },
   new: function() {
     order_arrays_new(this.params);
   },
