@@ -99,6 +99,7 @@ class V01::Api < Grape::API
     elsif e.is_a?(ActiveRecord::RecordInvalid)
       rack_response({error: e.to_s}.to_json, 400)
     else
+      Raven.capture_exception(e) if defined?(Raven)
       rack_response(response.to_json, 500)
     end
   end
