@@ -26,8 +26,7 @@
 <%= favicon_link_tag request.env['reseller'].favicon.url || 'favicon.ico', :rel => 'shortcut icon' %>
 
 <script type="text/javascript">
-  var defaultLocale = "<%= I18n.default_locale %>";
-  var locale = "<%= I18n.locale %>";
+  I18n.locale = I18n.currentLocale();
 </script>
 
 <!-- Javascripts -->
@@ -36,6 +35,6 @@
 
 <% if user_signed_in? %>
   <script type="text/javascript">
-    var reseller_name = <%= current_user.customer.reseller.name.to_json.html_safe %>
+    var reseller_name = <%= current_user.customer ? current_user.customer.reseller.name.to_json.html_safe : current_user.reseller ? current_user.reseller.name.to_json.html_safe : '' %>
   </script>
 <% end %>

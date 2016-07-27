@@ -17,12 +17,11 @@
 //
 var plannings_form = function() {
   $('#planning_date').datepicker({
-    language: defaultLocale,
+    language: I18n.locale,
     autoclose: true,
     calendarWeeks: true,
     todayHighlight: true,
     format: I18n.t("all.datepicker"),
-    language: I18n.locale,
     zIndexOffset: 1000
   });
 
@@ -577,6 +576,8 @@ var plannings_edit = function(params) {
         stop.color = color;
         stop.vehicle_name = vehicle_name;
         stop.route_id = route.route_id;
+        stop.capacity1_1_unit = route.capacity1_1_unit;
+        stop.capacity1_2_unit = route.capacity1_2_unit;
         stop.routes = allRoutesVehicles;
         stop.planning_id = data.planning_id;
         stop.isoline_capability = params.isoline_capability.isochrone || params.isoline_capability.isodistance;
