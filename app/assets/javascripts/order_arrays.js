@@ -17,7 +17,7 @@
 //
 var order_arrays_form = function() {
   $('#order_array_base_date').datepicker({
-    language: I18n.locale,
+    language: I18n.currentLocale(),
     autoclose: true,
     calendarWeeks: true,
     todayHighlight: true,

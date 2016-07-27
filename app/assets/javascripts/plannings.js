@@ -17,7 +17,11 @@
 //
 var plannings_form = function() {
   $('#planning_date').datepicker({
+<<<<<<< HEAD
     language: I18n.locale,
+=======
+    language: I18n.currentLocale(),
+>>>>>>> upstream/dev
     autoclose: true,
     calendarWeeks: true,
     todayHighlight: true,
