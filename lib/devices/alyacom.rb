@@ -24,7 +24,7 @@ class Alyacom < DeviceBase
 
   def test_list(_customer, params)
     rest_client_get [api_url, params[:alyacom_association], 'users'].join('/'), { apiKey: params[:alyacom_api_key] }
-  rescue RestClient::Forbidden, RestClient::InternalServerError
+  rescue RestClient::Forbidden, RestClient::InternalServerError, RestClient::ResourceNotFound
     raise DeviceServiceError.new('Alyacom: %s' % [ I18n.t('errors.alyacom.unauthorized') ])
   end
 
@@ -78,7 +78,7 @@ class Alyacom < DeviceBase
     update_staffs customer, [staff]
     update_users customer, waypoints.collect{ |w| w[:user] }
 
-    res = Hash[get(customer, 'planning', fromDate: planning_date.to_i, idStaff: staff[:id]).select{ |s| s.key?('idExt') }.map{ |s| [s['idExt'], s] }]
+    res = Hash[get(customer, 'planning', fromDate: planning_date.to_i * 1000, idStaff: staff[:id]).select{ |s| s.key?('idExt') }.map{ |s| [s['idExt'], s] }]
 
     plannings = waypoints.collect{ |waypoint|
       planning = waypoint[:planning]
