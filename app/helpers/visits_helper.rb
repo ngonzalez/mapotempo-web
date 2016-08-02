@@ -1,4 +1,4 @@
-# Copyright © Mapotempo, 2013-2014
+# Copyright © Mapotempo, 2016
 #
 # This file is part of Mapotempo.
 #
@@ -15,12 +15,15 @@
 # along with Mapotempo. If not, see:
 # <http://www.gnu.org/licenses/agpl.html>
 #
-module ApplicationHelper
-  def span_tag(content)
-    content_tag :span, content, class: 'default-color'
-  end
-  def number_to_human(number, options={})
-    options.merge! delimiter: I18n.t('number.format.delimiter'), separator: I18n.t('number.format.separator'), strip_insignificant_zeros: true
-    super number, options
+module VisitsHelper
+  def visit_quantities(visit, vehicle)
+    quantities = []
+    if visit.quantity1_1
+      quantities << visit.localized_quantity1_1 + (vehicle && vehicle.capacity1_1_unit ? ' ' + vehicle.capacity1_1_unit : '')
+    end
+    if visit.quantity1_2
+      quantities << visit.localized_quantity1_2 + (vehicle && vehicle.capacity1_2_unit ? ' ' + vehicle.capacity1_2_unit : '')
+    end
+    [quantities.size > 0 ? quantities.join(' - ') : nil]
   end
 end
