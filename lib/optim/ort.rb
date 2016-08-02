@@ -31,14 +31,23 @@ class Ort
   end
 
   def optimize(matrix, dimension, services, stores, rests, optimize_time, soft_upper_bound, cluster_threshold)
+    if !stores.include?(:start)
+      matrix = [[[0, 0]] * matrix.length] + matrix
+      matrix.collect!{ |x| [[0, 0]] + x }
+    end
+    if !stores.include?(:stop)
+      matrix += [[[0, 0]] * matrix.length]
+      matrix.collect!{ |x| x + [[0, 0]] }
+    end
+
     dimension = dimension == 'time' ? 0 : 1
     key = [soft_upper_bound, matrix.hash, dimension, services.hash, stores.hash, rests.hash, cluster_threshold]
 
-    time_window = services.collect{ |service| [service[:start1], service[:end1], service[:duration]] }
-    time_window.unshift [0, 2147483647, 0] if stores.include? :start
-    # time_window.push [0, 2147483647, 0] if stores.include? :stop
-    rest_window = rests.collect{ |rest| [rest[:start1], rest[:end1], rest[:duration]] }
-    cluster(matrix, dimension, time_window, cluster_threshold) { |matrix, time_window|
+    time_window = services.collect{ |service| [service[:start1], service[:end1], service[:start2], service[:end2], service[:duration]] }
+    time_window.unshift [0, 2147483647, nil, nil, 0] if stores.include? :start
+    # time_window.push [0, 2147483647, nil, nil, 0] if stores.include? :stop
+    rest_window = rests.collect{ |rest| [rest[:start1], rest[:end1], rest[:start2], rest[:end2], rest[:duration]] }
+    res = cluster(matrix, dimension, time_window, cluster_threshold) { |matrix, time_window|
       result = @cache.read(key)
       if !result
         data = {
@@ -56,6 +65,14 @@ class Ort
       jdata = JSON.parse(result)
       jdata['optim']
     }
+
+    if !stores.include?(:stop)
+      res = res[0..-2]
+    end
+    if !stores.include?(:start)
+      res = res[1..-1].collect{ |i| i - 1 }
+    end
+    res
   end
 
   private
