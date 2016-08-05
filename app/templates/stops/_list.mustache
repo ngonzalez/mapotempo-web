@@ -65,7 +65,9 @@
       </div>
       <span class="route-info"><i class="fa fa-clock-o fa-fw" title="{{#i18n}}plannings.edit.route_duration_help{{/i18n}}"></i>{{duration}}/{{work_time}}</span>
       <span class="route-info"><i class="fa fa-road fa-fw" title="{{#i18n}}plannings.edit.route_distance_help{{/i18n}}"></i>{{distance}}</span>
-      {{#quantity}}<span class="route-info"><i class="fa fa-archive fa-fw" title="{{#i18n}}plannings.edit.route_quantity_help{{/i18n}}"></i>{{quantity1_1}}{{#capacity1_1}}/{{capacity1_1}}{{/capacity1_1}}{{#capacity1_1_unit}}&nbsp;{{capacity1_1_unit}}{{/capacity1_1_unit}}</span> {{quantity1_2}}{{#capacity1_2}}/{{capacity1_2}}{{/capacity1_2}}{{#capacity1_2_unit}}&nbsp;{{capacity1_2_unit}}{{/capacity1_2_unit}}</span>{{/quantity}}
+      {{#quantities}}
+        <span class="route-info"><i class="fa fa-archive fa-fw" title="{{#i18n}}plannings.edit.route_quantity_help{{/i18n}}"></i>{{quantity}}</span>
+      {{/quantities}}
       {{#route_error}}
         <ul class="ui-state-error">
           {{#route_no_geolocalization}}
@@ -100,7 +102,7 @@
           {{/no_path}}
           <span class="info">
             {{#time}}
-              {{time}}{{#with_service_time}}&nbsp;-&nbsp;{{with_service_time}}{{/with_service_time}} -
+              {{time}}{{#start_with_service}}&nbsp;-&nbsp;{{start_with_service}}{{/start_with_service}} -
             {{/time}}
           </span>
           <span class="name" title="{{name}}">{{name}}</span>
@@ -112,6 +114,19 @@
         <div class="clearfix"></div>
       </li>
     </ul>
+    {{/store_start}}
+    {{^store_start}}
+      {{#start_with_service}}
+        <ul class="stops list-group">
+          <li class="list-group-item">
+            <div class="title">
+              <span class="info">
+                {{start}}&nbsp;-&nbsp;{{start_with_service}}
+              </span>
+            </div>
+          </li>
+        </ul>
+      {{/start_with_service}}
     {{/store_start}}
 
     <ul class="stops sortable list-group" {{#hidden}}style="display: none;"{{/hidden}}>
@@ -205,7 +220,7 @@
           {{/no_path}}
           <span class="info">
             {{#time}}
-              {{#with_service_time}}{{with_service_time}}&nbsp;-&nbsp;{{/with_service_time}}{{time}} -
+              {{#end_without_service}}{{end_without_service}}&nbsp;-&nbsp;{{/end_without_service}}{{time}} -
             {{/time}}
           </span>
           <span class="name" title="{{name}}">{{name}}</span>
@@ -217,6 +232,19 @@
         <div class="clearfix"></div>
       </li>
     </ul>
+    {{/store_stop}}
+    {{^store_stop}}
+      {{#end_without_service}}
+        <ul class="stops list-group">
+          <li class="list-group-item">
+            <div class="title">
+              <span class="info">
+                {{end_without_service}}&nbsp;-&nbsp;{{end}}
+              </span>
+            </div>
+          </li>
+        </ul>
+      {{/end_without_service}}
     {{/store_stop}}
 
   {{/vehicle}}
